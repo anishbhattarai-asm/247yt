@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <title>Stream Panel</title>
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <!-- Icon sprite: 24x24 stroke icons, used as <svg class="i"><use href="#i-play"/></svg> -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 4.5v15l12-7.5z" fill="currentColor"/></symbol>
+      <symbol id="i-stop" viewBox="0 0 24 24"><rect x="5.5" y="5.5" width="13" height="13" rx="2" fill="currentColor"/></symbol>
+      <symbol id="i-skip" viewBox="0 0 24 24"><path d="M5 5v14l10-7z" fill="currentColor"/><path d="M19 5v14"/></symbol>
+      <symbol id="i-restart" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></symbol>
+      <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15V4"/><path d="m7 9 5-5 5 5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13h10l1-13"/></symbol>
+      <symbol id="i-grip" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/></symbol>
+      <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 3.5 2.5 20h19z"/><path d="M12 10v4.5"/><circle cx="12" cy="17.3" r=".6"/></symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8.5" y="8.5" width="11" height="11" rx="2"/><path d="M15.5 8.5V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7.5a2 2 0 0 0 2 2h2.5"/></symbol>
+      <symbol id="i-logout" viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5"/><path d="M5 12h11"/></symbol>
+      <symbol id="i-film" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><path d="M7.5 4.5v15M16.5 4.5v15M3.5 9.5h4M3.5 14.5h4M16.5 9.5h4M16.5 14.5h4"/></symbol>
+      <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5.5l11-2V16"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/></symbol>
+      <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.8"/><path d="m20.5 16-5-5-9 8.5"/></symbol>
+      <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="1.5"/><path d="M10 6.5V3.5M14 6.5V3.5M10 20.5v-3M14 20.5v-3M6.5 10h-3M6.5 14h-3M20.5 10h-3M20.5 14h-3"/></symbol>
+      <symbol id="i-disk" viewBox="0 0 24 24"><rect x="3.5" y="13" width="17" height="6.5" rx="1.5"/><path d="M5 13 7.5 5h9L19 13"/><circle cx="16.5" cy="16.3" r=".7"/></symbol>
+      <symbol id="i-pulse" viewBox="0 0 24 24"><path d="M3 12h4l2.5-6 5 12 2.5-6h4"/></symbol>
+      <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></symbol>
+      <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.5 3.5 5.3 3.5 8.5s-1 6-3.5 8.5c-2.5-2.5-3.5-5.3-3.5-8.5s1-6 3.5-8.5z"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8.5 5v14M15.5 5v14"/></symbol>
+      <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M19 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4"/></symbol>
+      <symbol id="i-yt" viewBox="0 0 24 24"><rect x="2.5" y="5.5" width="19" height="13" rx="3.5"/><path d="M10 9.2v5.6l4.8-2.8z" fill="currentColor"/></symbol>
+      <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="6.5" width="12.5" height="11" rx="2"/><path d="m15.5 10.5 5.5-3v9l-5.5-3z"/></symbol>
+      <symbol id="i-signal" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M8 8a5.7 5.7 0 0 0 0 8M16 8a5.7 5.7 0 0 1 0 8M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></symbol>
+    </defs>
+  </svg>
+
+  <!-- Sign in -->
+  <main id="login" class="login" hidden>
+    <form id="login-form" class="login-card" autocomplete="on">
+      <div class="brand brand-lg"><svg class="i"><use href="#i-signal"/></svg><span>Stream Panel</span></div>
+      <label class="field">
+        <span>Password</span>
+        <input id="login-password" type="password" name="password" autocomplete="current-password" required autofocus>
+      </label>
+      <p id="login-error" class="form-error" role="alert"></p>
+      <button class="btn btn-primary btn-block" type="submit">Sign in</button>
+      <p id="login-hint" class="muted small"></p>
+    </form>
+  </main>
+
+  <!-- Panel -->
+  <div id="app" hidden>
+    <header class="topbar">
+      <div class="brand"><svg class="i"><use href="#i-signal"/></svg><span>Stream Panel</span></div>
+      <div id="top-status" class="pill" data-tone="idle"><span class="dot"></span><span class="pill-text">…</span></div>
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tab="overview" aria-selected="true">Overview</button>
+        <button role="tab" data-tab="library">Library</button>
+        <button role="tab" data-tab="settings">Settings</button>
+        <button role="tab" data-tab="logs">Logs</button>
+      </nav>
+      <button id="logout" class="icon-btn" title="Sign out" aria-label="Sign out"><svg class="i"><use href="#i-logout"/></svg></button>
+    </header>
+
+    <!-- Overview -->
+    <section id="tab-overview" class="tab" role="tabpanel">
+      <div id="banner" class="banner" hidden></div>
+
+      <article class="card now">
+        <div class="now-head">
+          <div>
+            <div class="eyebrow" id="now-label">On air</div>
+            <h1 id="now-title" class="now-title">Nothing playing</h1>
+            <div id="now-sub" class="muted"></div>
+          </div>
+          <div class="now-actions">
+            <button id="btn-start" class="btn btn-primary"><svg class="i"><use href="#i-play"/></svg>Start</button>
+            <button id="btn-stop" class="btn btn-danger" hidden><svg class="i"><use href="#i-stop"/></svg>Stop</button>
+            <button id="btn-skip" class="btn" title="Skip to the next file"><svg class="i"><use href="#i-skip"/></svg>Skip</button>
+          </div>
+        </div>
+        <div class="progress" aria-hidden="true"><div id="now-bar" class="progress-bar"></div></div>
+        <div class="now-times muted small"><span id="now-pos">0:00</span><span id="now-dur"></span></div>
+        <div class="next"><span class="muted">Next</span><span id="next-title">—</span></div>
+      </article>
+
+      <div class="grid">
+        <article class="card stat-card">
+          <h2><svg class="i"><use href="#i-pulse"/></svg>Stream</h2>
+          <dl class="stats">
+            <div><dt>Session</dt><dd id="st-uptime">—</dd></div>
+            <div><dt>Mode</dt><dd id="st-mode">—</dd></div>
+            <div><dt>Order</dt><dd id="st-order">—</dd></div>
+            <div><dt>File changes</dt><dd id="st-boundaries">—</dd></div>
+            <div><dt>Timing drift</dt><dd id="st-lag">—</dd></div>
+            <div><dt>This month</dt><dd id="st-egress">—</dd></div>
+          </dl>
+          <button id="btn-restart" class="btn btn-ghost btn-small" title="Clean reconnect; viewers don't notice"><svg class="i"><use href="#i-restart"/></svg>Restart connection</button>
+        </article>
+
+        <article class="card stat-card">
+          <h2><svg class="i"><use href="#i-cpu"/></svg>Server</h2>
+          <dl class="stats">
+            <div><dt>CPU</dt><dd id="sys-cpu">—</dd></div>
+            <div><dt>Memory</dt><dd id="sys-mem">—</dd></div>
+            <div class="span2"><dt>Disk free</dt><dd><div class="meter"><div id="sys-disk-bar"></div></div><span id="sys-disk" class="small"></span></dd></div>
+            <div><dt>Panel up</dt><dd id="sys-up">—</dd></div>
+            <div><dt>Converting</dt><dd id="sys-norm">—</dd></div>
+          </dl>
+        </article>
+
+        <article class="card stat-card">
+          <h2><svg class="i"><use href="#i-globe"/></svg>Access &amp; alerts</h2>
+          <dl class="stats">
+            <div class="span2"><dt>Panel link</dt><dd class="url-row"><span id="acc-url" class="mono small">—</span><button id="copy-url" class="icon-btn small" title="Copy link" aria-label="Copy link"><svg class="i"><use href="#i-copy"/></svg></button></dd></div>
+            <div><dt>Discord</dt><dd id="acc-discord">—</dd></div>
+            <div><dt>Heartbeat</dt><dd id="acc-health">—</dd></div>
+            <div><dt>OBS input</dt><dd id="acc-obs">—</dd></div>
+            <div><dt>YouTube</dt><dd id="acc-yt">—</dd></div>
+          </dl>
+        </article>
+      </div>
+    </section>
+
+    <!-- Library -->
+    <section id="tab-library" class="tab" role="tabpanel" hidden>
+      <div class="lib-head">
+        <div class="seg" role="tablist" id="kind-tabs">
+          <button data-kind="video" aria-selected="true"><svg class="i"><use href="#i-film"/></svg>Videos <span class="count" data-count="video">0</span></button>
+          <button data-kind="audio"><svg class="i"><use href="#i-music"/></svg>Tracks <span class="count" data-count="audio">0</span></button>
+          <button data-kind="background"><svg class="i"><use href="#i-image"/></svg>Backgrounds <span class="count" data-count="background">0</span></button>
+        </div>
+        <span id="lib-total" class="muted small"></span>
+      </div>
+      <p id="kind-hint" class="muted small kind-hint"></p>
+
+      <div class="card add-card">
+        <form id="import-form" class="add-row">
+          <svg class="i add-icon"><use href="#i-link"/></svg>
+          <input id="import-url" type="url" placeholder="Paste a link: Google Drive, Dropbox, or a direct download" required>
+          <button class="btn btn-primary" type="submit">Import</button>
+        </form>
+        <div class="add-or muted small">or</div>
+        <label id="dropzone" class="dropzone">
+          <input id="file-input" type="file" multiple hidden>
+          <svg class="i"><use href="#i-upload"/></svg>
+          <span>Drop files here or <u>choose files</u></span>
+          <span class="muted small">Sent in 32 MB pieces, so large files work through the tunnel</span>
+        </label>
+        <div id="uploads" class="uploads"></div>
+      </div>
+
+      <ul id="media-list" class="media-list" aria-live="polite"></ul>
+      <p id="media-empty" class="empty muted" hidden></p>
+    </section>
+
+    <!-- Settings -->
+    <section id="tab-settings" class="tab settings" role="tabpanel" hidden>
+      <form class="card form-card" data-form="stream">
+        <h2><svg class="i"><use href="#i-signal"/></svg>YouTube</h2>
+        <label class="field">
+          <span>Stream key <em class="state" data-state="youtube.streamKey"></em><button type="button" class="link-btn" data-clear="youtube.streamKey" hidden>Remove</button></span>
+          <input type="password" name="youtube.streamKey" autocomplete="off" placeholder="Paste to set or replace">
+          <small class="muted">From your <b>scheduled</b> stream in YouTube Studio, with Auto-stop OFF. Never shown again after saving.</small>
+        </label>
+        <details class="advanced">
+          <summary>Advanced</summary>
+          <label class="field"><span>RTMP server</span><input name="youtube.rtmpUrl" autocomplete="off"></label>
+        </details>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Save</button></div>
+      </form>
+
+      <form class="card form-card" data-form="ytapi">
+        <h2><svg class="i"><use href="#i-yt"/></svg>YouTube account</h2>
+        <div id="yt-body" class="form-card"></div>
+      </form>
+
+      <form class="card form-card" data-form="playback">
+        <h2><svg class="i"><use href="#i-film"/></svg>Playback</h2>
+        <div class="field">
+          <span>Mode</span>
+          <div class="seg seg-inline" data-radio="mode">
+            <button type="button" data-value="video">Video playlist</button>
+            <button type="button" data-value="lofi">Lofi (image + music)</button>
+          </div>
+        </div>
+        <div class="field">
+          <span>Order</span>
+          <div class="seg seg-inline" data-radio="playlist.order">
+            <button type="button" data-value="sequential">In order</button>
+            <button type="button" data-value="shuffle">Shuffle</button>
+            <button type="button" data-value="repeat-one">Repeat one</button>
+          </div>
+        </div>
+        <label class="field" data-lofi-only>
+          <span>Lofi background</span>
+          <select name="lofi.backgroundId"></select>
+        </label>
+        <small class="muted">Changes apply at the next file change — no interruption.</small>
+      </form>
+
+      <form class="card form-card" data-form="obs">
+        <h2><svg class="i"><use href="#i-cam"/></svg>OBS live input</h2>
+        <p class="muted small">Go live from OBS through the panel. When OBS starts streaming it takes over the broadcast; when it stops, the playlist carries on where it left off. Same broadcast, no stream key to share, nothing to fight over.</p>
+        <label class="switch"><input type="checkbox" name="obs.enabled"><span>Accept a live stream from OBS</span></label>
+        <div id="obs-details" hidden>
+          <div class="field">
+            <span>Server for OBS <em class="state" id="obs-state"></em></span>
+            <div class="url-row"><code id="obs-url" class="mono small wrap">—</code><button type="button" id="copy-obs" class="icon-btn small" title="Copy" aria-label="Copy the OBS server address"><svg class="i"><use href="#i-copy"/></svg></button></div>
+            <small class="muted">In OBS: Settings &gt; Stream &gt; Service <b>Custom</b>. Paste this as <b>Server</b> and leave Stream Key empty. It includes the password, so only share it with people who may go live.</small>
+          </div>
+          <div class="field">
+            <span>OBS must send</span>
+            <ul id="obs-required" class="checklist small"></ul>
+          </div>
+          <details class="advanced">
+            <summary>Advanced</summary>
+            <div class="row">
+              <label class="field"><span>Server address</span><input name="obs.publicHost" placeholder="Detected automatically" autocomplete="off"></label>
+              <label class="field"><span>UDP port</span><input type="number" name="obs.port" min="1024" max="65535"></label>
+            </div>
+            <small class="muted">This UDP port must be open in Oracle's security list (see the setup guide).</small>
+            <div class="form-actions"><button type="button" class="btn btn-small" id="btn-obs-pass"><svg class="i"><use href="#i-lock"/></svg>New password</button></div>
+          </details>
+        </div>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Save</button></div>
+      </form>
+
+      <form class="card form-card" data-form="alerts">
+        <h2><svg class="i"><use href="#i-bell"/></svg>Alerts</h2>
+        <label class="field">
+          <span>Discord webhook <em class="state" data-state="notifications.discordWebhookUrl"></em><button type="button" class="link-btn" data-clear="notifications.discordWebhookUrl" hidden>Remove</button></span>
+          <input type="password" name="notifications.discordWebhookUrl" autocomplete="off" placeholder="https://discord.com/api/webhooks/…">
+        </label>
+        <fieldset class="checks">
+          <legend class="small muted">Send an alert when the stream…</legend>
+          <label><input type="checkbox" name="notifications.events.start"> starts</label>
+          <label><input type="checkbox" name="notifications.events.stopped"> stops</label>
+          <label><input type="checkbox" name="notifications.events.dropped"> drops</label>
+          <label><input type="checkbox" name="notifications.events.online"> comes back</label>
+          <label><input type="checkbox" name="notifications.events.frozen"> freezes</label>
+          <label><input type="checkbox" name="notifications.events.skipped"> skips a broken file</label>
+          <label><input type="checkbox" name="notifications.events.failing"> keeps failing</label>
+          <label><input type="checkbox" name="notifications.events.panelUrl"> panel link changes</label>
+          <label><input type="checkbox" name="notifications.events.lowDisk"> disk runs low</label>
+          <label><input type="checkbox" name="notifications.events.highCpu"> CPU stays high</label>
+          <label><input type="checkbox" name="notifications.events.obs"> OBS goes live, ends or is refused</label>
+        </fieldset>
+        <label class="field">
+          <span>Healthchecks.io ping URL <em class="state" data-state="healthcheck.url"></em><button type="button" class="link-btn" data-clear="healthcheck.url" hidden>Remove</button></span>
+          <input type="password" name="healthcheck.url" autocomplete="off" placeholder="https://hc-ping.com/…">
+          <small class="muted">Alerts you if the whole server dies — the one thing it can't report itself.</small>
+        </label>
+        <div class="form-actions">
+          <button class="btn" type="button" id="btn-test-alert"><svg class="i"><use href="#i-bell"/></svg>Send test</button>
+          <button class="btn btn-primary" type="submit">Save</button>
+        </div>
+      </form>
+
+      <form class="card form-card" data-form="access">
+        <h2><svg class="i"><use href="#i-lock"/></svg>Access</h2>
+        <label class="switch"><input type="checkbox" name="tunnel.enabled"><span>Reach the panel through a Cloudflare tunnel</span></label>
+        <div class="row">
+          <label class="field"><span>Current password</span><input type="password" name="current" autocomplete="current-password"></label>
+          <label class="field"><span>New password</span><input type="password" name="next" autocomplete="new-password" minlength="8"></label>
+        </div>
+        <small class="muted">Changing it signs out every other browser.</small>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Save</button></div>
+      </form>
+
+      <form class="card form-card" data-form="restart">
+        <h2><svg class="i"><use href="#i-restart"/></svg>Weekly reconnect</h2>
+        <p class="muted small">The connection to YouTube is renewed every few days at a quiet hour (FFmpeg's timestamps run out after ~24 days). Viewers don't notice.</p>
+        <div class="row">
+          <label class="field"><span>Every (days)</span><input type="number" name="restart.everyDays" min="1" max="20" required></label>
+          <label class="field"><span>At (server time)</span><input type="time" name="restart.at" required></label>
+        </div>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Save</button></div>
+      </form>
+
+      <form class="card form-card" data-form="profile">
+        <h2><svg class="i"><use href="#i-film"/></svg>Stream format</h2>
+        <p id="profile-note" class="muted small"></p>
+        <div class="row">
+          <label class="field"><span>Width</span><input type="number" name="profile.width"></label>
+          <label class="field"><span>Height</span><input type="number" name="profile.height"></label>
+          <label class="field"><span>FPS</span>
+            <select name="profile.fps"><option>24</option><option>25</option><option>30</option><option>50</option><option>60</option></select></label>
+        </div>
+        <div class="row">
+          <label class="field"><span>Video bitrate</span><input name="profile.videoBitrate" pattern="\d{2,6}k"></label>
+          <label class="field"><span>Audio bitrate</span><input name="profile.audioBitrate" pattern="\d{2,6}k"></label>
+          <label class="field"><span>Encoder preset</span>
+            <select name="profile.preset"><option>ultrafast</option><option>superfast</option><option>veryfast</option><option>faster</option><option>fast</option><option>medium</option></select></label>
+        </div>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Save</button></div>
+      </form>
+    </section>
+
+    <!-- Logs -->
+    <section id="tab-logs" class="tab" role="tabpanel" hidden>
+      <div class="log-head">
+        <div class="seg seg-inline" id="log-filter">
+          <button data-source="" aria-selected="true">All</button>
+          <button data-source="stream">Stream</button>
+          <button data-source="supervisor">Recovery</button>
+          <button data-source="normalize">Converting</button>
+          <button data-source="import">Imports</button>
+          <button data-source="ffmpeg">FFmpeg</button>
+        </div>
+        <button id="log-pause" class="btn btn-small"><svg class="i"><use href="#i-pause"/></svg><span>Pause</span></button>
+      </div>
+      <pre id="log" class="log" tabindex="0"></pre>
+    </section>
+  </div>
+
+  <dialog id="confirm" class="dialog">
+    <form method="dialog">
+      <h3 id="confirm-title"></h3>
+      <p id="confirm-text" class="muted"></p>
+      <div class="form-actions">
+        <button class="btn" value="cancel">Cancel</button>
+        <button class="btn btn-danger" value="ok" id="confirm-ok">OK</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+</body>
+</html>

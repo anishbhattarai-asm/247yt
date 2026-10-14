@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "server": { "host": "127.0.0.1", "port": 3000 },
+  "auth": { "passwordHash": null, "sessionSecret": null, "sessionHours": 168 },
+  "youtube": { "streamKey": "", "rtmpUrl": "rtmp://a.rtmp.youtube.com/live2" },
+  "mode": "video",
+  "playlist": { "order": "sequential" },
+  "lofi": { "backgroundId": null },
+  "profile": {
+    "width": 1920,
+    "height": 1080,
+    "fps": 30,
+    "videoBitrate": "3000k",
+    "audioBitrate": "128k",
+    "sampleRate": 44100,
+    "preset": "veryfast"
+  },
+  "restart": { "everyDays": 7, "at": "04:00" },
+  "notifications": {
+    "discordWebhookUrl": "",
+    "events": {
+      "start": true, "stopped": true, "dropped": true, "online": true, "frozen": true,
+      "skipped": true, "failing": true, "panelUrl": true, "lowDisk": true, "highCpu": true
+    }
+  },
+  "healthcheck": { "url": "", "intervalMinutes": 5 },
+  "tunnel": { "enabled": true, "cloudflaredPath": "cloudflared" },
+  "limits": { "maxUploadBytes": 21474836480, "minFreeDiskBytes": 5368709120 }
+}

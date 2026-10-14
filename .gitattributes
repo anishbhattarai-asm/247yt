@@ -1,0 +1,4 @@
+# Unix line endings everywhere: setup.sh and the service file run on Linux.
+* text=auto eol=lf
+*.png binary
+*.mp4 binary

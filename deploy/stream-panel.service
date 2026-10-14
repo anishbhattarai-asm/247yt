@@ -1,0 +1,34 @@
+# systemd unit for the stream panel. setup.sh fills in __USER__, __DIR__ and
+# __NODE__ and installs it as /etc/systemd/system/stream-panel.service.
+#
+# Layer 1 of self-healing: systemd keeps server.js alive (crash or reboot).
+# Layer 2 is in the app: the supervisor keeps FFmpeg and the stream alive.
+
+[Unit]
+Description=Stream Panel (24/7 YouTube streaming)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__DIR__
+ExecStart=__NODE__ __DIR__/server.js
+Environment=NODE_ENV=production
+Restart=always
+RestartSec=5
+# SIGTERM: the app flushes the stream cleanly and keeps "should be streaming",
+# so it resumes on the next start. Give it time to do that.
+KillSignal=SIGTERM
+TimeoutStopSec=30
+LimitNOFILE=65536
+
+# Hardening: the app only needs its own folder.
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=__DIR__
+
+[Install]
+WantedBy=multi-user.target
