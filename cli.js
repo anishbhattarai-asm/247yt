@@ -4,6 +4,9 @@
 //   node cli.js set-password --stdin     reads one line from stdin (scripts)
 //   node cli.js setup-code [--stdin]     one-time code for choosing the password
 //                                        in the browser (made up, or from stdin)
+//   node cli.js set-terminal-password    the Terminal tab's own password (prompts;
+//                                        --stdin reads it); turns the tab on
+//   node cli.js terminal-off             turns the Terminal tab off
 //   node cli.js set <path> <value>       e.g. set mode lofi, set restart.at 04:30
 //   node cli.js set <path> --stdin       value from stdin — use for secrets so
 //                                        they never appear in shell history:
@@ -18,7 +21,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { hashPassword, MIN_PASSWORD } from './src/core/auth.js';
+import { hashPassword, MIN_PASSWORD, verifyPassword } from './src/core/auth.js';
 import { newSetupCode, SECRETS, Settings, setPath } from './src/core/settings.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -84,6 +87,27 @@ async function setupCode(args) {
   console.log(`Setup code: ${code}\nOpen the panel and enter it to choose the password.`);
 }
 
+async function setTerminalPassword(args) {
+  let password;
+  if (args.includes('--stdin')) {
+    password = await readStdinLine();
+  } else {
+    password = await askHidden(`New terminal password (min ${MIN_PASSWORD} chars, not the panel's): `);
+    if ((await askHidden('Again: ')) !== password) throw new Error('Passwords do not match');
+  }
+  const settings = await new Settings(dataDir).load();
+  const panel = settings.get().auth.passwordHash;
+  if (panel && (await verifyPassword(password, panel))) throw new Error('Use a different password from the panel\'s');
+  await settings.setTerminalHash(await hashPassword(password));
+  console.log('Terminal password set: the panel\'s Terminal tab is on.');
+}
+
+async function terminalOff() {
+  const settings = await new Settings(dataDir).load();
+  await settings.setTerminalHash(null);
+  console.log('Terminal turned off. Open sessions close within a few seconds; set a new password to turn it on again.');
+}
+
 async function set([key, value]) {
   if (!key || value === undefined) throw new Error('usage: node cli.js set <path> <value|--stdin>');
   let raw = value === '--stdin' ? await readStdinLine() : value;
@@ -109,9 +133,9 @@ async function hasMedia() {
 }
 
 const [command, ...args] = process.argv.slice(2);
-const commands = { 'set-password': setPassword, 'setup-code': setupCode, set };
+const commands = { 'set-password': setPassword, 'setup-code': setupCode, 'set-terminal-password': setTerminalPassword, 'terminal-off': terminalOff, set };
 if (!commands[command]) {
-  console.log('usage:\n  node cli.js set-password [--stdin]\n  node cli.js setup-code [--stdin]\n  node cli.js set <path> <value|--stdin>');
+  console.log('usage:\n  node cli.js set-password [--stdin]\n  node cli.js setup-code [--stdin]\n  node cli.js set-terminal-password [--stdin]\n  node cli.js terminal-off\n  node cli.js set <path> <value|--stdin>');
   process.exit(command ? 1 : 0);
 }
 commands[command](args).catch((err) => {

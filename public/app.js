@@ -208,6 +208,7 @@ $('#setup-form').addEventListener('submit', async (e) => {
 });
 
 $('#logout').addEventListener('click', async () => {
+  closeTerminal();
   await api('POST', '/api/auth/logout').catch(() => {});
   showLogin();
 });
@@ -219,6 +220,7 @@ function selectTab(tab) {
   for (const b of $$('.tabs button')) b.setAttribute('aria-selected', String(b.dataset.tab === tab));
   for (const s of $$('.tab')) s.hidden = s.id !== `tab-${tab}`;
   if (tab === 'logs') loadLogs();
+  if (tab === 'terminal') loadTerminal().catch(() => {});
   if (tab === 'library') loadMedia();
   if (tab === 'settings') {
     renderConfig();
@@ -1221,6 +1223,203 @@ $('#btn-obs-pass').addEventListener('click', async () => {
 
 $('#btn-test-alert').addEventListener('click', () => act(() => api('POST', '/api/config/test-notification'), 'Test alert sent — check Discord'));
 
+// terminal
+//
+// A real shell on the server (xterm.js in the browser, a WebSocket to the
+// panel, a login shell behind it). It has its own password: setting it the
+// first time takes the panel password, opening a session takes the terminal
+// password every time.
+
+const term = { status: null, lib: null, ws: null, x: null, fit: null, watch: null };
+
+async function loadTerminal() {
+  term.status = await api('GET', '/api/terminal');
+  renderTerminal();
+}
+
+function renderTerminal() {
+  const s = term.status;
+  if (!s) return;
+  const screen = Boolean(term.x);
+  $('#term-unavailable').hidden = s.available;
+  $('#term-setup').hidden = screen || s.enabled;
+  $('#term-unlock').hidden = screen || !s.enabled;
+  $('#term-live').hidden = !screen;
+  $('#term-note').textContent = `Sudo works, like SSH. A session closes after ${s.idleMinutes} min without typing, or when you close it here. Discord hears about every session.`;
+}
+
+// xterm.js is only fetched the first time a terminal opens.
+async function terminalLib() {
+  if (term.lib) return term.lib;
+  if (!$('link[data-xterm]')) document.head.append(h('link', { rel: 'stylesheet', href: '/vendor/xterm/xterm.css', 'data-xterm': true }));
+  const [{ Terminal }, { FitAddon }] = await Promise.all([import('/vendor/xterm/xterm.mjs'), import('/vendor/xterm/addon-fit.mjs')]);
+  term.lib = { Terminal, FitAddon };
+  return term.lib;
+}
+
+function setTermState(text, tone) {
+  $('#term-state').textContent = text;
+  $('#term-pill').dataset.tone = tone;
+}
+
+const termSend = (msg) => term.ws?.readyState === WebSocket.OPEN && term.ws.send(JSON.stringify(msg));
+
+async function openTerminal(ticket) {
+  const { Terminal, FitAddon } = await terminalLib();
+  const x = new Terminal({
+    cursorBlink: true,
+    fontFamily: 'ui-monospace, "Cascadia Code", Menlo, monospace',
+    fontSize: 13,
+    scrollback: 5000,
+    theme: { background: '#0a0c10', foreground: '#c9d1dc', cursor: '#e5484d', selectionBackground: '#3b4a6680' },
+  });
+  const fit = new FitAddon();
+  x.loadAddon(fit);
+  term.x = x;
+  term.fit = fit;
+  renderTerminal(); // the screen must be visible before it can be measured
+  x.open($('#term-screen'));
+  fit.fit();
+  setTermState('Connecting…', 'info');
+  $('#term-close span').textContent = 'Close';
+
+  const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/terminal/ws`);
+  ws.binaryType = 'arraybuffer';
+  term.ws = ws;
+  ws.onopen = () => ws.send(JSON.stringify({ t: 'ticket', v: ticket, c: x.cols, r: x.rows }));
+  ws.onmessage = (ev) => {
+    if (typeof ev.data !== 'string') return x.write(new Uint8Array(ev.data));
+    let m;
+    try {
+      m = JSON.parse(ev.data);
+    } catch {
+      return;
+    }
+    if (m.t === 'ready') {
+      setTermState('Connected', 'ok');
+      x.focus();
+    } else if (m.t === 'exit') setTermState('The shell has ended', 'idle');
+    else if (m.t === 'idle') setTermState(`Closed after ${m.v} min without typing`, 'idle');
+    else if (m.t === 'error') {
+      x.write(`\r\n\x1b[31m${m.v}\x1b[0m\r\n`);
+      setTermState(m.v, 'warn');
+    }
+  };
+  ws.onclose = () => {
+    if (term.ws !== ws) return;
+    term.ws = null;
+    if ($('#term-pill').dataset.tone === 'ok') setTermState('Disconnected', 'idle');
+    $('#term-close span').textContent = 'Back';
+    x.write('\r\n\x1b[90m[session closed]\x1b[0m\r\n');
+  };
+  x.onData((d) => termSend({ t: 'd', v: d }));
+  x.onResize(({ cols, rows }) => termSend({ t: 'r', c: cols, r: rows }));
+  term.watch = new ResizeObserver(() => {
+    try {
+      fit.fit();
+    } catch {}
+  });
+  term.watch.observe($('#term-screen'));
+}
+
+function closeTerminal() {
+  term.ws?.close();
+  term.ws = null;
+  term.watch?.disconnect();
+  term.x?.dispose();
+  term.x = null;
+  $('#term-screen').replaceChildren();
+  renderTerminal();
+}
+
+$('#term-close').addEventListener('click', closeTerminal);
+
+const KEYS = { esc: '\x1b', tab: '\t', 'ctrl-c': '\x03', 'ctrl-d': '\x04', up: '\x1b[A', down: '\x1b[B', right: '\x1b[C', left: '\x1b[D' };
+for (const b of $$('[data-key]')) {
+  b.addEventListener('click', () => {
+    termSend({ t: 'd', v: KEYS[b.dataset.key] });
+    term.x?.focus();
+  });
+}
+// Quick commands: data-run runs it, data-type only types it (you press Enter).
+for (const b of $$('[data-run], [data-type]')) {
+  b.addEventListener('click', () => {
+    termSend({ t: 'd', v: b.dataset.run ? `${b.dataset.run}\r` : b.dataset.type });
+    term.x?.focus();
+  });
+}
+
+$('#term-open-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = $('#term-open-error');
+  err.textContent = '';
+  try {
+    const { ticket } = await api('POST', '/api/terminal/ticket', { password: $('#term-pass').value });
+    $('#term-pass').value = '';
+    await openTerminal(ticket);
+  } catch (e2) {
+    err.textContent = e2.message;
+  }
+});
+
+$('#term-set-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = $('#term-set-error');
+  err.textContent = '';
+  if ($('#term-new').value !== $('#term-new2').value) {
+    err.textContent = 'The two terminal passwords are not the same.';
+    return;
+  }
+  try {
+    term.status = await api('POST', '/api/terminal/password', { panelPassword: $('#term-panel-pass').value, next: $('#term-new').value });
+    e.target.reset();
+    renderTerminal();
+    toast('Terminal is on. Open it with the terminal password.');
+  } catch (e2) {
+    err.textContent = e2.message;
+  }
+});
+
+$('#term-change-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = $('#term-change-error');
+  err.textContent = '';
+  if (!$('#term-chg').value) {
+    err.textContent = 'Type the new terminal password.';
+    return;
+  }
+  if ($('#term-chg').value !== $('#term-chg2').value) {
+    err.textContent = 'The two new passwords are not the same.';
+    return;
+  }
+  try {
+    term.status = await api('POST', '/api/terminal/password', { current: $('#term-cur').value, next: $('#term-chg').value });
+    e.target.reset();
+    renderTerminal();
+    toast('Terminal password changed');
+  } catch (e2) {
+    err.textContent = e2.message;
+  }
+});
+
+$('#term-off').addEventListener('click', async () => {
+  const err = $('#term-change-error');
+  err.textContent = '';
+  if (!$('#term-cur').value) {
+    err.textContent = 'Type the current terminal password to turn it off.';
+    return;
+  }
+  if (!(await confirmDialog('Turn the terminal off?', 'The Terminal tab stops working until a new terminal password is set (which takes the panel password).', 'Turn off'))) return;
+  try {
+    term.status = await api('POST', '/api/terminal/off', { current: $('#term-cur').value });
+    $('#term-change-form').reset();
+    renderTerminal();
+    toast('Terminal turned off');
+  } catch (e2) {
+    err.textContent = e2.message;
+  }
+});
+
 // logs
 
 async function loadLogs() {
@@ -1265,7 +1464,7 @@ $('#log-pause').addEventListener('click', () => {
     const s = await api('GET', '/api/auth/session');
     if (!s.authenticated) return showLogin(s.passwordSet, s.setupCodeRequired);
     await showApp();
-    if (['overview', 'library', 'settings', 'logs'].includes(hash)) selectTab(hash);
+    if (['overview', 'library', 'settings', 'logs', 'terminal'].includes(hash)) selectTab(hash);
   } catch {
     showLogin();
   }

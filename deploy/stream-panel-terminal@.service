@@ -1,0 +1,21 @@
+# One Terminal tab session: a login shell for __USER__ (deploy/terminal-session.py),
+# started by stream-panel-terminal.socket for each connection. install-units.sh
+# fills in __USER__ and __DIR__.
+#
+# Deliberately not sandboxed like stream-panel.service: this is the owner's
+# command line, so sudo, apt and systemctl work as they do over SSH. Closing
+# the tab ends the session and everything started in it.
+
+[Unit]
+Description=Stream Panel terminal session
+CollectMode=inactive-or-failed
+
+[Service]
+User=__USER__
+WorkingDirectory=__DIR__
+Environment=LANG=C.UTF-8
+ExecStart=/usr/bin/python3 __DIR__/deploy/terminal-session.py
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+KillMode=control-group

@@ -17,12 +17,13 @@ import { Settings } from './core/settings.js';
 import { Stats } from './core/stats.js';
 import { JsonStore } from './core/store.js';
 import { Supervisor } from './core/supervisor.js';
+import { Terminal } from './core/terminal.js';
 import { Tunnel } from './core/tunnel.js';
 import { YouTube } from './core/youtube.js';
 
 // dest(session) overrides the YouTube destination (tests write .flv files).
 // STREAM_DEST=<file with %d> or <rtmp url> does the same from the environment.
-export async function createContext({ dataDir, mediaDir, dest = null, stallTimeout = 30, echoLogs = true, obsBind = '0.0.0.0', finderBind = '0.0.0.0', youtubeOptions = {} } = {}) {
+export async function createContext({ dataDir, mediaDir, dest = null, stallTimeout = 30, echoLogs = true, obsBind = '0.0.0.0', finderBind = '0.0.0.0', terminalSocket, youtubeOptions = {} } = {}) {
   await mkdir(dataDir, { recursive: true });
   await mkdir(mediaDir, { recursive: true });
 
@@ -78,6 +79,7 @@ export async function createContext({ dataDir, mediaDir, dest = null, stallTimeo
   const health = new Health({ getConfig, supervisor, stats, notifier, state, log: logs.for('health') });
   const tunnel = new Tunnel({ getConfig, port: getConfig().server.port, state, log: logs.for('tunnel') });
   const finder = new Finder({ getConfig, tunnel, bind: finderBind, log: logs.for('tunnel') });
+  const terminal = new Terminal({ getConfig, socketPath: terminalSocket ?? process.env.TERMINAL_SOCKET, log: logs.for('terminal') });
   const importer = new Importer({ library, normalizer, getConfig, log: logs.for('import') });
   const ingest = new Ingest({ getConfig, bind: obsBind, log: logs.for('obs') });
   const youtube = new YouTube({
@@ -145,6 +147,9 @@ export async function createContext({ dataDir, mediaDir, dest = null, stallTimeo
   youtube.on('broadcastEnded', (e) => notifier.ytBroadcastEnded(e));
   youtube.on('authLost', (e) => notifier.ytAuthLost(e));
 
+  // Terminal tab: every session that opens is reported.
+  terminal.on('opened', (e) => notifier.terminalOpened(e));
+
   // multistream (restream.js): follows the main stream
   restream.on('down', (e) => notifier.restreamDown(e));
   restream.on('up', (e) => notifier.restreamUp(e));
@@ -162,7 +167,7 @@ export async function createContext({ dataDir, mediaDir, dest = null, stallTimeo
 
   return {
     settings, getConfig, redact, logs, state, library, normalizer, playlist, pipeline,
-    supervisor, notifier, stats, health, tunnel, finder, importer, ingest, youtube, restream,
+    supervisor, notifier, stats, health, tunnel, finder, importer, ingest, youtube, restream, terminal,
     async start() {
       await supervisor.boot();
       health.start();
@@ -175,6 +180,7 @@ export async function createContext({ dataDir, mediaDir, dest = null, stallTimeo
     async shutdown() {
       tunnel.close();
       finder.close();
+      terminal.closeAll();
       ingest.close();
       youtube.close();
       restream.close();

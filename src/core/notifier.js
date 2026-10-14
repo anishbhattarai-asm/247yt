@@ -168,6 +168,25 @@ export class Notifier {
     this.#send('obs', 'warning', { title: 'OBS was refused', description: reason });
   }
 
+  // Terminal tab: it gives full control of the server, so every session
+  // and every password change is reported.
+  terminalOpened({ ip }) {
+    this.#send('terminal', 'warning', {
+      title: 'Terminal opened',
+      description: 'Someone typed the terminal password and opened a command line on the server. If it was not you, change the terminal password and the panel password now.',
+      fields: [{ name: 'From', value: mono(ip ?? 'unknown') }, { name: 'At', value: when() }],
+    });
+  }
+
+  terminalPassword({ ip, change }) {
+    const what = { set: 'Terminal password set: the Terminal tab is on', changed: 'Terminal password changed', off: 'Terminal turned off' }[change];
+    this.#send('terminal', 'warning', {
+      title: what ?? 'Terminal password changed',
+      description: change === 'set' ? 'The panel\'s Terminal tab now opens a command line on the server for anyone with this password. If it was not you, turn it off from the server: node cli.js terminal-off' : '',
+      fields: [{ name: 'From', value: mono(ip ?? 'unknown') }, { name: 'At', value: when() }],
+    });
+  }
+
   // Multistream destinations (Twitch, Kick, ...): one alert per outage.
   restreamDown({ name, error }) {
     this.#send('restream', 'dropped', {

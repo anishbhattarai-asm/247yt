@@ -15,7 +15,8 @@
 #
 # Installs Node.js 24, FFmpeg 9.0 (pinned static build — the version the
 # pipeline was tested on), cloudflared; installs and starts the systemd
-# service. Safe to re-run (it skips what's already done).
+# service and the Terminal tab's socket (the terminal stays off until it has
+# its own password). Safe to re-run (it skips what's already done).
 
 set -euo pipefail
 
@@ -77,7 +78,7 @@ open_port() { # $1 = tcp|udp, $2 = port, $3 = what it is for
 
 say "1/6  System packages"
 "${APT[@]}" update -qq
-"${APT[@]}" install -y -qq curl ca-certificates xz-utils git >/dev/null
+"${APT[@]}" install -y -qq curl ca-certificates xz-utils git python3 >/dev/null
 
 say "2/6  Node.js ${NODE_MAJOR}"
 if ! command -v node >/dev/null || [ "$(node -p 'process.versions.node.split(".")[0]')" -lt 22 ]; then
@@ -163,9 +164,7 @@ FINDER=$(node -e "console.log(require('./data/config.json').finder?.port ?? 0)")
 if [ "$FINDER" -gt 0 ]; then open_port tcp "$FINDER" "the panel's stable link"; fi
 
 say "6/6  Service"
-sed -e "s#__USER__#$(id -un)#g" -e "s#__DIR__#${DIR}#g" -e "s#__NODE__#$(command -v node)#g" \
-  deploy/stream-panel.service | sudo tee /etc/systemd/system/stream-panel.service >/dev/null
-sudo systemctl daemon-reload
+bash deploy/install-units.sh # the panel, and the Terminal tab's socket
 sudo systemctl enable --now stream-panel >/dev/null
 sudo systemctl restart stream-panel
 

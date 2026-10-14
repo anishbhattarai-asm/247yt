@@ -25,6 +25,8 @@ playlist carries on when you stop.
   YouTube's own stream health.
 - **Set up from the browser:** one button creates the Oracle server and
   installs everything; a checklist in the panel walks you through the rest.
+- **Terminal in the panel:** the server's command line in your browser, like
+  SSH, behind its own password.
 - **Private by default:** one password, reached through a Cloudflare link;
   the server answers nothing else except a link that forwards to the panel,
   and OBS's port (only if you turn OBS input on).
@@ -236,6 +238,31 @@ Every few days the connection to YouTube is renewed at a quiet hour (viewers
 don't notice). Your browser's time zone is saved when you choose the
 password; **Use my time zone** sets it again, or pick one from the list.
 
+### 8. Terminal (optional)
+
+![Terminal](docs/images/terminal.png)
+
+The **Terminal** tab is the server's command line in the browser: update the
+panel, restart things, check disk space, look at files. It works like SSH
+(`sudo` included), so it has **its own password**, separate from the panel's:
+someone who learns the panel password still can't open it.
+
+1. **Terminal** tab → type the panel password and choose a terminal password
+   (a different one) → **Turn on the terminal**.
+2. To use it: type the terminal password → **Open terminal**. It asks every
+   time.
+
+- The buttons along the top run common commands (**Disk space**, **Panel
+  log**, **Processes**) or type one for you to confirm with Enter (**Update
+  panel**). The keys along the bottom are the ones phone keyboards lack.
+- A session closes after 15 minutes without typing, or when you close it.
+  Closing it ends everything started in it (use `tmux` for long jobs).
+- Discord is told every time the terminal opens and whenever its password is
+  set, changed or turned off.
+- Changing the terminal password, or turning it off, takes the current
+  terminal password. Forgot it? Over SSH: `node cli.js set-terminal-password`
+  (or `node cli.js terminal-off`).
+
 ## Keep your keys private
 
 - All secrets (stream keys, Discord and Healthchecks URLs, the OBS password,
@@ -253,6 +280,10 @@ password; **Use my time zone** sets it again, or pick one from the list.
   code** only works until a password is chosen, under the same lockout.
 - The stable link (`:8080`) only forwards to the panel's current Cloudflare
   link; it shows no panel pages and needs no password of its own.
+- The Terminal tab is off until you give it its own password, and asks for
+  it every time. Wrong guesses lock out like wrong sign-ins (without locking
+  you out of the panel). The panel itself stays in its systemd sandbox; each
+  terminal session runs as a separate service.
 
 ## Day to day
 
@@ -262,6 +293,7 @@ password; **Use my time zone** sets it again, or pick one from the list.
 | See what's happening | Panel → **Logs**, or `journalctl -u stream-panel -f` |
 | Restart everything | `sudo systemctl restart stream-panel` (resumes where it was) |
 | Update to a new version | `bash deploy/update.sh` |
+| Run a command without SSH | Panel → **Terminal** (its own password) |
 | Reset the panel password | `cd stream-panel && npm run set-password` |
 
 More in the guide's [Troubleshooting](deploy/SETUP-GUIDE.md#troubleshooting).

@@ -1,0 +1,20 @@
+# Socket for the panel's Terminal tab. install-units.sh fills in __USER__ and
+# installs it as /etc/systemd/system/stream-panel-terminal.socket.
+#
+# Only that user (the panel runs as it) can connect, and the panel only does
+# for someone who typed the terminal password. Each connection starts one
+# stream-panel-terminal@.service session.
+
+[Unit]
+Description=Stream Panel terminal socket
+
+[Socket]
+ListenStream=/run/stream-panel-terminal/terminal.sock
+SocketUser=__USER__
+SocketMode=0600
+DirectoryMode=0755
+Accept=yes
+MaxConnections=4
+
+[Install]
+WantedBy=sockets.target

@@ -41,6 +41,7 @@
       <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M19 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4"/></symbol>
       <symbol id="i-yt" viewBox="0 0 24 24"><rect x="2.5" y="5.5" width="19" height="13" rx="3.5"/><path d="M10 9.2v5.6l4.8-2.8z" fill="currentColor"/></symbol>
       <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="6.5" width="12.5" height="11" rx="2"/><path d="m15.5 10.5 5.5-3v9l-5.5-3z"/></symbol>
+      <symbol id="i-terminal" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="m7 10 3 2.5L7 15M12.5 15H17"/></symbol>
       <symbol id="i-signal" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M8 8a5.7 5.7 0 0 0 0 8M16 8a5.7 5.7 0 0 1 0 8M5 5a10 10 0 0 0 0 14M19 5a10 10 0 0 1 0 14"/></symbol>
     </defs>
   </svg>
@@ -85,6 +86,7 @@
         <button role="tab" data-tab="library">Library</button>
         <button role="tab" data-tab="settings">Settings</button>
         <button role="tab" data-tab="logs">Logs</button>
+        <button role="tab" data-tab="terminal">Terminal</button>
       </nav>
       <button id="logout" class="icon-btn" title="Sign out" aria-label="Sign out"><svg class="i"><use href="#i-logout"/></svg></button>
     </header>
@@ -302,6 +304,7 @@
           <label><input type="checkbox" name="notifications.events.highCpu"> CPU stays high</label>
           <label><input type="checkbox" name="notifications.events.obs"> OBS goes live, ends or is refused</label>
           <label><input type="checkbox" name="notifications.events.restream"> another platform drops or comes back</label>
+          <label><input type="checkbox" name="notifications.events.terminal"> the terminal opens or its password changes</label>
         </fieldset>
         <label class="field">
           <span>Healthchecks.io ping URL <em class="state" data-state="healthcheck.url"></em><button type="button" class="link-btn" data-clear="healthcheck.url" hidden>Remove</button></span>
@@ -357,6 +360,75 @@
         </div>
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save</button></div>
       </form>
+    </section>
+
+    <!-- Terminal -->
+    <section id="tab-terminal" class="tab" role="tabpanel" hidden>
+      <p id="term-unavailable" class="banner small" hidden><svg class="i"><use href="#i-alert"/></svg><span>The terminal service isn't installed on this server yet. Run this once over SSH: <code>bash deploy/update.sh</code></span></p>
+
+      <article id="term-setup" class="card form-card term-card" hidden>
+        <h2><svg class="i"><use href="#i-terminal"/></svg>Terminal</h2>
+        <p class="muted small">A command line on your server, right here: update the panel, restart things, look at files and disk space. It has full control (sudo works, like SSH), so it has <b>its own password</b>, asked every time it opens. Every session is reported in Discord.</p>
+        <form id="term-set-form" class="form-card">
+          <label class="field"><span>Panel password</span><input type="password" id="term-panel-pass" autocomplete="current-password" required></label>
+          <div class="row">
+            <label class="field"><span>New terminal password</span><input type="password" id="term-new" autocomplete="new-password" minlength="8" required></label>
+            <label class="field"><span>Same again</span><input type="password" id="term-new2" autocomplete="new-password" minlength="8" required></label>
+          </div>
+          <small class="muted">Make it different from the panel password: someone who learns that one still can't open a shell. Forgot it? On the server: <code>node cli.js set-terminal-password</code></small>
+          <p id="term-set-error" class="form-error" role="alert"></p>
+          <div class="form-actions"><button class="btn btn-primary" type="submit"><svg class="i"><use href="#i-lock"/></svg>Turn on the terminal</button></div>
+        </form>
+      </article>
+
+      <article id="term-unlock" class="card form-card term-card" hidden>
+        <h2><svg class="i"><use href="#i-terminal"/></svg>Terminal</h2>
+        <form id="term-open-form" class="term-open">
+          <label class="field"><span>Terminal password</span><input type="password" id="term-pass" autocomplete="off" required></label>
+          <button class="btn btn-primary" type="submit"><svg class="i"><use href="#i-terminal"/></svg>Open terminal</button>
+        </form>
+        <p id="term-open-error" class="form-error" role="alert"></p>
+        <small class="muted" id="term-note"></small>
+        <details class="advanced">
+          <summary>Change the terminal password, or turn the terminal off</summary>
+          <form id="term-change-form" class="form-card">
+            <label class="field"><span>Current terminal password</span><input type="password" id="term-cur" autocomplete="off" required></label>
+            <div class="row">
+              <label class="field"><span>New terminal password</span><input type="password" id="term-chg" autocomplete="new-password" minlength="8"></label>
+              <label class="field"><span>Same again</span><input type="password" id="term-chg2" autocomplete="new-password" minlength="8"></label>
+            </div>
+            <p id="term-change-error" class="form-error" role="alert"></p>
+            <div class="form-actions">
+              <button class="btn btn-danger" type="button" id="term-off">Turn off</button>
+              <button class="btn btn-primary" type="submit">Change password</button>
+            </div>
+          </form>
+        </details>
+      </article>
+
+      <div id="term-live" class="term-live" hidden>
+        <div class="term-bar">
+          <span id="term-pill" class="pill" data-tone="info"><span class="dot"></span><span id="term-state">Connecting…</span></span>
+          <div class="btn-row term-quick">
+            <button type="button" class="btn btn-small" data-run="df -h /">Disk space</button>
+            <button type="button" class="btn btn-small" data-run="journalctl -u stream-panel -n 40 -f">Panel log</button>
+            <button type="button" class="btn btn-small" data-run="top">Processes</button>
+            <button type="button" class="btn btn-small" data-type="bash deploy/update.sh" title="Typed for you: press Enter to run it. The terminal closes while the panel restarts.">Update panel</button>
+          </div>
+          <button type="button" id="term-close" class="btn btn-small btn-ghost"><svg class="i"><use href="#i-x"/></svg><span>Close</span></button>
+        </div>
+        <div class="term-frame"><div id="term-screen" class="term-screen"></div></div>
+        <div class="term-keys" aria-label="Keys a phone keyboard lacks">
+          <button type="button" class="btn btn-small" data-key="esc">Esc</button>
+          <button type="button" class="btn btn-small" data-key="tab">Tab</button>
+          <button type="button" class="btn btn-small" data-key="ctrl-c">Ctrl+C</button>
+          <button type="button" class="btn btn-small" data-key="ctrl-d">Ctrl+D</button>
+          <button type="button" class="btn btn-small" data-key="up" aria-label="Up">&uarr;</button>
+          <button type="button" class="btn btn-small" data-key="down" aria-label="Down">&darr;</button>
+          <button type="button" class="btn btn-small" data-key="left" aria-label="Left">&larr;</button>
+          <button type="button" class="btn btn-small" data-key="right" aria-label="Right">&rarr;</button>
+        </div>
+      </div>
     </section>
 
     <!-- Logs -->

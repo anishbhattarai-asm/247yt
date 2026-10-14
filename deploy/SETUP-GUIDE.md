@@ -317,6 +317,30 @@ allowance is 10 TB a month). Extra platforms follow the main stream: when the
 panel's stream is stopped, they stop too. OBS takeover reaches every platform.
 Check each platform's rules on 24/7 pre-recorded streams before leaving it on.
 
+## 10. Terminal in the panel (optional)
+
+The **Terminal** tab is the server's command line in your browser, so you
+don't need SSH (or an SSH key) for day-to-day work. It works like an SSH
+login, `sudo` included, so it has its own password:
+
+1. Panel → **Terminal** → your panel password, then a new **terminal
+   password** (a different one) twice → **Turn on the terminal**. Discord is
+   told.
+2. **Open terminal** asks for the terminal password every time.
+
+Good to know:
+- **Update panel** types `bash deploy/update.sh` for you; press Enter to run
+  it. The panel restarts at the end, which closes the terminal: open it again
+  after a few seconds.
+- A session closes after 15 minutes without typing (for longer:
+  `node cli.js set terminal.idleMinutes 30`). Closing it ends everything
+  started in it: run long jobs in `tmux`.
+- Changing the terminal password or turning the terminal off needs the
+  current terminal password. If you forget it: over SSH,
+  `node cli.js set-terminal-password`, or `node cli.js terminal-off`.
+- Installed by hand before this existed? Run `bash deploy/update.sh` once
+  over SSH: it installs the terminal's systemd socket.
+
 ## Troubleshooting
 
 | Problem | Do this |
@@ -336,3 +360,7 @@ Check each platform's rules on 24/7 pre-recorded streams before leaving it on.
 | An upload or link import is refused for disk space | The server needs room for the file plus its converted copy. Delete media you no longer play. |
 | OBS can't connect ("Failed to connect") | Port 9710 UDP open in the security list (step 8)? OBS input switched on? Address copied after the last **New password**? |
 | OBS connects but is refused | Discord / the panel say which OBS setting to change |
+| Terminal tab: "the terminal service isn't installed" | The server predates the terminal: run `bash deploy/update.sh` once over SSH. |
+| Forgot the terminal password | Over SSH: `cd stream-panel && node cli.js set-terminal-password` (or `node cli.js terminal-off`) |
+| Terminal says "Disconnected" right after **Update panel** | Normal: the panel restarted. Open the terminal again. |
+| Discord says "Terminal opened" and it wasn't you | Change the terminal password and the panel password now (Terminal tab and Settings → Access). |

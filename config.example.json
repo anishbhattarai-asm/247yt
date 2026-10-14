@@ -8,7 +8,8 @@
     "passwordHash": null,
     "sessionSecret": null,
     "sessionHours": 168,
-    "setupCode": null
+    "setupCode": null,
+    "terminalHash": null
   },
   "youtube": {
     "streamKey": "",
@@ -57,7 +58,8 @@
       "highCpu": true,
       "obs": true,
       "youtube": true,
-      "restream": true
+      "restream": true,
+      "terminal": true
     }
   },
   "healthcheck": {
@@ -70,6 +72,9 @@
   },
   "finder": {
     "port": 0
+  },
+  "terminal": {
+    "idleMinutes": 15
   },
   "obs": {
     "enabled": false,

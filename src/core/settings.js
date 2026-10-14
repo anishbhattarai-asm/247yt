@@ -15,7 +15,8 @@ export const DEFAULTS = {
   server: { host: '127.0.0.1', port: 3000 },
   // setupCode: one-time code that lets the first visitor choose the password
   // (printed in the log, or an Oracle stack output). Cleared once it is used.
-  auth: { passwordHash: null, sessionSecret: null, sessionHours: 168, setupCode: null },
+  // terminalHash: the Terminal tab's own password (null = terminal off).
+  auth: { passwordHash: null, sessionSecret: null, sessionHours: 168, setupCode: null, terminalHash: null },
   // clientId/clientSecret: the owner's Google Cloud OAuth client for the
   // optional "Connect YouTube" (youtube.js); refreshToken, channel and
   // broadcastId are written by the panel itself, never by a patch.
@@ -46,6 +47,7 @@ export const DEFAULTS = {
     events: {
       start: true, stopped: true, dropped: true, online: true, frozen: true,
       skipped: true, failing: true, panelUrl: true, lowDisk: true, highCpu: true, obs: true, youtube: true, restream: true,
+      terminal: true,
     },
   },
   healthcheck: { url: '', intervalMinutes: 5 },
@@ -53,6 +55,8 @@ export const DEFAULTS = {
   // Stable link (finder.js): http://<server-ip>:<port> redirects to the
   // current Cloudflare link. 0 = off; the Oracle stack turns it on (8080).
   finder: { port: 0 },
+  // Terminal tab (terminal.js): a session closes after this long untouched.
+  terminal: { idleMinutes: 15 },
   // OBS takeover: OBS streams to the panel over SRT (encrypted, passphrase),
   // the panel cuts over cleanly and returns to the playlist when OBS stops.
   // publicHost: what OBS connects to; empty = this server's detected public IP.
@@ -72,6 +76,7 @@ export const SECRETS = [
   'auth.passwordHash',
   'auth.sessionSecret',
   'auth.setupCode',
+  'auth.terminalHash',
   'youtube.streamKey',
   'youtube.clientSecret',
   'youtube.refreshToken',
@@ -138,7 +143,7 @@ export class Settings {
     const cfg = this.get();
     const out = structuredClone(cfg);
     for (const key of SECRETS) setPath(out, key, { set: Boolean(getPath(cfg, key)) });
-    out.auth = { passwordSet: Boolean(cfg.auth.passwordHash), sessionHours: cfg.auth.sessionHours };
+    out.auth = { passwordSet: Boolean(cfg.auth.passwordHash), terminalSet: Boolean(cfg.auth.terminalHash), sessionHours: cfg.auth.sessionHours };
     out.restream.destinations = cfg.restream.destinations.map(({ key, ...d }) => ({ ...d, key: { set: Boolean(key) } }));
     out.envOverrides = this.envOverrides();
     return out;
@@ -158,6 +163,13 @@ export class Settings {
   async newObsPassphrase() {
     await this.store.update((d) => {
       d.obs.passphrase = newObsPassphrase();
+    });
+  }
+
+  // null turns the Terminal tab off.
+  async setTerminalHash(hash) {
+    await this.store.update((d) => {
+      d.auth.terminalHash = hash;
     });
   }
 
@@ -283,6 +295,7 @@ const FIELDS = {
   'healthcheck.intervalMinutes': (v) => int(v, 'Healthcheck interval', 1, 60),
   'tunnel.enabled': (v) => bool(v, 'Tunnel'),
   'finder.port': (v) => (v === 0 ? 0 : int(v, 'Stable link port', 1024, 65535)),
+  'terminal.idleMinutes': (v) => int(v, 'Terminal idle timeout (minutes)', 1, 240),
   'obs.enabled': (v) => bool(v, 'OBS input'),
   'obs.port': (v) => int(v, 'OBS port', 1024, 65535),
   'obs.publicHost': (v) => str(v, 'Server address for OBS', { pattern: /^[\w.:-]{1,253}$/, allowEmpty: true }),

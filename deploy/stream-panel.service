@@ -1,5 +1,5 @@
-# systemd unit for the stream panel. setup.sh fills in __USER__, __DIR__ and
-# __NODE__ and installs it as /etc/systemd/system/stream-panel.service.
+# systemd unit for the stream panel. install-units.sh fills in __USER__,
+# __DIR__ and __NODE__ and installs it as /etc/systemd/system/stream-panel.service.
 #
 # Layer 1 of self-healing: systemd keeps server.js alive (crash or reboot).
 # Layer 2 is in the app: the supervisor keeps FFmpeg and the stream alive.

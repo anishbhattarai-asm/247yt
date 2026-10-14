@@ -13,8 +13,16 @@ import { obsRoutes } from './routes/obs.js';
 import { youtubeRoutes } from './routes/youtube.js';
 import { restreamRoutes } from './routes/restream.js';
 import { streamRoutes } from './routes/stream.js';
+import { terminalRoutes, terminalSocket } from './routes/terminal.js';
 
 const PUBLIC_DIR = fileURLToPath(new URL('../public/', import.meta.url));
+// The Terminal tab's browser side (xterm.js), straight from node_modules.
+const MODULES = fileURLToPath(new URL('../node_modules/', import.meta.url));
+const VENDOR = {
+  'xterm.mjs': '@xterm/xterm/lib/xterm.mjs',
+  'xterm.css': '@xterm/xterm/css/xterm.css',
+  'addon-fit.mjs': '@xterm/addon-fit/lib/addon-fit.mjs',
+};
 
 // Start listening with keep-alive longer than cloudflared's (90 s). Node's
 // default (5 s) races proxies that reuse idle connections: a request sent
@@ -22,6 +30,7 @@ const PUBLIC_DIR = fileURLToPath(new URL('../public/', import.meta.url));
 // slow ARM emulation; through the tunnel it would surface as random errors).
 export function listen(app, port, host, onListening) {
   const server = app.listen(port, host, onListening);
+  server.on('upgrade', (req, socket, head) => (app.upgrade ? app.upgrade(req, socket, head) : socket.destroy()));
   server.keepAliveTimeout = 120_000;
   server.headersTimeout = 125_000;
   return server;
@@ -43,11 +52,19 @@ export function createApp(ctx) {
   app.use('/api/obs', auth, obsRoutes(ctx));
   app.use('/api/youtube', auth, youtubeRoutes(ctx));
   app.use('/api/restream', auth, restreamRoutes(ctx));
+  // Its own limiter: wrong terminal passwords must not lock out sign-in.
+  app.use('/api/terminal', auth, terminalRoutes(ctx, new LoginLimiter()));
+  app.upgrade = terminalSocket(ctx);
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 
   // Revalidate every time (cheap 304s): after an update a browser must never
   // mix old JS with new HTML, which a 1-hour cache did.
   app.use(express.static(PUBLIC_DIR, { maxAge: 0 }));
+  app.get('/vendor/xterm/:file', (req, res, next) => {
+    const file = VENDOR[req.params.file];
+    if (!file) return next();
+    res.sendFile(path.join(MODULES, file), { maxAge: '1d' });
+  });
   app.get('/{*any}', (req, res) => res.sendFile(path.join(PUBLIC_DIR, 'index.html')));
 
   // Errors: known ones keep their status and message; anything else is logged

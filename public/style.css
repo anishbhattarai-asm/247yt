@@ -137,6 +137,7 @@ u { text-underline-offset: 3px; }
 .pill[data-tone="live"] .dot { background: #fff; animation: pulse 1.6s ease-in-out infinite; }
 .pill[data-tone="warn"] .dot { background: var(--warn); }
 .pill[data-tone="info"] .dot { background: var(--info); }
+.pill[data-tone="ok"] .dot { background: var(--ok); }
 @keyframes pulse { 50% { opacity: .35; } }
 
 /* layout */
@@ -301,6 +302,23 @@ fieldset:disabled, .locked input, .locked select { opacity: .6; }
 .log .t { color: #6b7483; }
 .log .s { color: #8ab4ff; }
 .log .e { color: #ff8a8f; }
+
+/* terminal */
+.term-card { max-width: 680px; }
+.term-open { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+.term-open .field { flex: 1; min-width: 200px; }
+.term-live { display: grid; gap: 10px; }
+.term-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.term-bar .term-quick { flex: 1; }
+/* The fit add-on sizes the terminal to its parent's full height, so that
+   parent (#term-screen) has no padding or border of its own: the frame
+   carries them, and the padding goes on .xterm (which the add-on subtracts). */
+.term-frame { border-radius: var(--radius); background: #0a0c10; border: 1px solid var(--border); overflow: hidden; }
+.term-screen { height: min(68dvh, 640px); min-height: 280px; }
+.term-screen .xterm { height: 100%; padding: 8px 10px; }
+.term-keys { display: flex; gap: 6px; flex-wrap: wrap; }
+.term-keys .btn { min-width: 44px; }
+#tab-terminal code { overflow-wrap: anywhere; }
 
 /* dialog + toasts */
 .dialog {
