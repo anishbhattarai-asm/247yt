@@ -8,8 +8,8 @@ playlist carries on when you stop.
 ![Overview](docs/images/overview.png)
 
 - **Set and forget:** reconnects by itself after network drops, restarts a
-  frozen stream, survives server reboots, and resumes the same file at the
-  same second.
+  frozen stream, survives server reboots, resumes the same file at the same
+  second, and replaces its panel link if Cloudflare ever drops it.
 - **Two modes:** a video playlist (in order, shuffled or repeat-one), or lofi
   (one background image or GIF under a list of music tracks).
 - **Edit while live:** add, delete, reorder and skip with no interruption.
