@@ -47,7 +47,7 @@ export const DEFAULTS = {
     events: {
       start: true, stopped: true, dropped: true, online: true, frozen: true,
       skipped: true, failing: true, panelUrl: true, lowDisk: true, highCpu: true, obs: true, youtube: true, restream: true,
-      terminal: true,
+      terminal: true, guessing: true,
     },
   },
   healthcheck: { url: '', intervalMinutes: 5 },

@@ -170,6 +170,15 @@ export class Notifier {
 
   // Terminal tab: it gives full control of the server, so every session
   // and every password change is reported.
+  // Wrong passwords keep coming (LoginLimiter): someone may be guessing.
+  guessing({ what, tries, addresses, minutes }) {
+    this.#send('guessing', 'warning', {
+      title: 'Someone may be guessing a password',
+      description: `${tries} wrong tries at ${what} in the last ${minutes} minutes, from ${addresses} ${addresses === 1 ? 'address' : 'addresses'}. Each address is locked out after 5 wrong tries. If this keeps happening, make sure the password is long and not used anywhere else.`,
+      fields: [{ name: 'At', value: when() }],
+    });
+  }
+
   terminalOpened({ ip }) {
     this.#send('terminal', 'warning', {
       title: 'Terminal opened',

@@ -15,39 +15,50 @@ import { hashPassword, terminalPasswordProblem, verifyPassword } from '../core/a
 import { isAuthenticated } from '../middleware/requireAuth.js';
 import { clientIp } from '../middleware/security.js';
 
-export function terminalRoutes(ctx, limiter) {
+// limiters: { panel: sign-in's limiter, terminal: the terminal password's }.
+export function terminalRoutes(ctx, limiters) {
   const r = Router();
   const log = ctx.logs.for('terminal');
 
-  // Checks the terminal password, counting wrong ones per client.
-  async function checkTerminal(req, res, password) {
+  // Checks a password through a limiter: wrong ones lock the client out,
+  // counted from the moment they arrive. Answers the request itself (429,
+  // 403) and returns false when the check didn't pass.
+  async function checked(lim, req, res, password, hash, what) {
     const ip = clientIp(req);
-    const gate = limiter.check(ip);
-    if (!gate.allowed) {
-      res.set('Retry-After', String(gate.retryAfter));
-      res.status(429).json({ error: `Too many attempts. Try again in ${gate.retryAfter} s.` });
+    const attempt = lim.begin(ip);
+    if (!attempt.allowed) {
+      res.set('Retry-After', String(attempt.retryAfter));
+      res.status(429).json({ error: `Too many attempts. Try again in ${attempt.retryAfter} s.` });
       return false;
     }
+    try {
+      if (!(await verifyPassword(password, hash))) {
+        attempt.fail();
+        log(`wrong ${what} from ${ip}`);
+        res.status(403).json({ error: `Wrong ${what}` });
+        return false;
+      }
+      attempt.succeed();
+      return true;
+    } finally {
+      attempt.release();
+    }
+  }
+
+  async function checkTerminal(req, res, password) {
     await ctx.settings.refresh(); // pick up a change made from the command line
     const hash = ctx.getConfig().auth.terminalHash;
     if (!hash) {
       res.status(409).json({ error: 'The terminal is off: set a terminal password first.' });
       return false;
     }
-    if (!(await verifyPassword(password, hash))) {
-      limiter.fail(ip);
-      log(`wrong terminal password from ${ip}`);
-      res.status(403).json({ error: 'Wrong terminal password' });
-      return false;
-    }
-    limiter.succeed(ip);
-    return true;
+    return checked(limiters.terminal, req, res, password, hash, 'terminal password');
   }
 
   r.get('/', (req, res) => res.json(ctx.terminal.status()));
 
-  // Set (first time: with the panel password) or change (with the current
-  // terminal password).
+  // Set (first time: with the panel password, which shares sign-in's
+  // lockout) or change (with the current terminal password).
   r.post('/password', async (req, res) => {
     const { panelPassword, current, next } = req.body ?? {};
     const ip = clientIp(req);
@@ -55,13 +66,7 @@ export function terminalRoutes(ctx, limiter) {
     const { auth } = ctx.getConfig();
     const first = !auth.terminalHash;
     if (first) {
-      const gate = limiter.check(ip);
-      if (!gate.allowed) return res.status(429).json({ error: `Too many attempts. Try again in ${gate.retryAfter} s.` });
-      if (!(await verifyPassword(panelPassword, auth.passwordHash))) {
-        limiter.fail(ip);
-        return res.status(403).json({ error: 'The panel password is wrong' });
-      }
-      limiter.succeed(ip);
+      if (!(await checked(limiters.panel, req, res, panelPassword, auth.passwordHash, 'panel password'))) return;
     } else if (!(await checkTerminal(req, res, current))) {
       return;
     }

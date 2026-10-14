@@ -3,13 +3,34 @@
 // - Password stored as scrypt hash (Node built-in; no native deps on ARM).
 // - Session = signed, expiring token in an HttpOnly SameSite=Strict cookie.
 //   Changing the password rotates the signing secret, signing everyone out.
-// - Login rate limit per client IP: after 5 failures, locked out for 1 min,
-//   doubling up to 15 min.
+// - Login rate limit per client (IP, or IPv6 /64): after 5 failures, locked
+//   out for 1 min, doubling up to 15 min (LoginLimiter).
+// - At most a few password checks run at once (each takes ~16 MB and a CPU
+//   core for a moment), so a flood of guesses can't starve the stream.
 
 import { createHash, createHmac, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
+import { EventEmitter } from 'node:events';
+import { isIPv6 } from 'node:net';
 import { promisify } from 'node:util';
 
-const scryptP = promisify(scrypt);
+const scryptRaw = promisify(scrypt);
+const MAX_CHECKS = 4; // at once; the rest wait their turn
+const MAX_WAITING = 200; // beyond that: "busy, try again"
+let checking = 0;
+const waiting = [];
+async function scryptP(...args) {
+  if (checking >= MAX_CHECKS) {
+    if (waiting.length >= MAX_WAITING) throw Object.assign(new Error('The panel is busy. Try again in a moment.'), { status: 503 });
+    await new Promise((resolve) => waiting.push(resolve));
+  }
+  checking++;
+  try {
+    return await scryptRaw(...args);
+  } finally {
+    checking--;
+    waiting.shift()?.();
+  }
+}
 const N = 16384;
 const R = 8;
 const P = 1;
@@ -82,33 +103,104 @@ function sign(secret, body) {
   return createHmac('sha256', secret).update(body).digest('base64url');
 }
 
-export class LoginLimiter {
-  constructor({ maxFails = 5, baseLockMs = 60_000, maxLockMs = 15 * 60_000 } = {}) {
+// Who a lockout applies to. IPv6 addresses are grouped by their /64 network:
+// one connection usually gets a whole /64, so a new address costs nothing.
+export function clientKey(ip) {
+  const s = String(ip ?? 'unknown').split('%')[0];
+  const v4 = /^(?:::ffff:)?(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(s);
+  if (v4) return v4[1];
+  if (!isIPv6(s)) return s;
+  const [head, tail] = s.split('::');
+  const h = head ? head.split(':') : [];
+  const t = tail ? tail.split(':') : [];
+  const parts = s.includes('::') ? [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill('0'), ...t] : h;
+  return `${parts.slice(0, 4).map((p) => p.toLowerCase().replace(/^0+(?=.)/, '')).join(':')}::/64`;
+}
+
+// Wrong passwords lock a client (address, or IPv6 /64) out: after 5, for
+// 1 min, doubling up to 15 min. A guess counts from the moment it arrives
+// (begin), not when its slow check finishes, so guesses sent all at once
+// can't slip past the limit. Emits 'guessing' when wrong passwords keep
+// coming from anywhere (default: 30 in an hour), at most once an hour.
+export class LoginLimiter extends EventEmitter {
+  constructor({ maxFails = 5, baseLockMs = 60_000, maxLockMs = 15 * 60_000, alertAfter = 30, alertWindowMs = 3600_000 } = {}) {
+    super();
     this.maxFails = maxFails;
     this.baseLockMs = baseLockMs;
     this.maxLockMs = maxLockMs;
-    this.clients = new Map(); // ip -> { fails, lockedUntil, locks }
+    this.alertAfter = alertAfter;
+    this.alertWindowMs = alertWindowMs;
+    this.clients = new Map(); // key -> { fails, pending, lockedUntil, locks }
+    this.recent = []; // [time, key] of recent wrong passwords, from anyone
+    this.alertedAt = -Infinity; // never alerted yet
+  }
+
+  #entry(key) {
+    let c = this.clients.get(key);
+    if (!c) {
+      c = { fails: 0, pending: 0, lockedUntil: 0, locks: 0 };
+      this.clients.set(key, c);
+      if (this.clients.size > 10_000) this.clients.delete(this.clients.keys().next().value);
+    }
+    return c;
   }
 
   check(ip, now = Date.now()) {
-    const c = this.clients.get(ip);
+    const c = this.clients.get(clientKey(ip));
     if (c && c.lockedUntil > now) return { allowed: false, retryAfter: Math.ceil((c.lockedUntil - now) / 1000) };
+    if (c && c.fails + c.pending >= this.maxFails) return { allowed: false, retryAfter: 1 }; // guesses still being checked
     return { allowed: true };
   }
 
+  // Reserve one guess. Then call fail() or succeed() on the result; release()
+  // (in a finally) frees it if neither happened, e.g. on an error.
+  begin(ip, now = Date.now()) {
+    const gate = this.check(ip, now);
+    if (!gate.allowed) return gate;
+    const c = this.#entry(clientKey(ip));
+    c.pending++;
+    let open = true;
+    const close = () => {
+      if (!open) return false;
+      open = false;
+      c.pending--;
+      return true;
+    };
+    return {
+      allowed: true,
+      fail: () => close() && this.fail(ip),
+      succeed: () => close() && this.succeed(ip),
+      release: () => close(),
+    };
+  }
+
   fail(ip, now = Date.now()) {
-    const c = this.clients.get(ip) ?? { fails: 0, lockedUntil: 0, locks: 0 };
+    const key = clientKey(ip);
+    const c = this.#entry(key);
     c.fails++;
     if (c.fails >= this.maxFails) {
       c.lockedUntil = now + Math.min(this.maxLockMs, this.baseLockMs * 2 ** c.locks);
       c.locks++;
       c.fails = 0;
     }
-    this.clients.set(ip, c);
-    if (this.clients.size > 10_000) this.clients.delete(this.clients.keys().next().value);
+    this.recent.push([now, key]);
+    while (this.recent.length && this.recent[0][0] < now - this.alertWindowMs) this.recent.shift();
+    if (this.recent.length >= this.alertAfter && now - this.alertedAt >= this.alertWindowMs) {
+      this.alertedAt = now;
+      this.emit('guessing', {
+        tries: this.recent.length,
+        addresses: new Set(this.recent.map(([, k]) => k)).size,
+        minutes: Math.round(this.alertWindowMs / 60_000),
+      });
+    }
   }
 
   succeed(ip) {
-    this.clients.delete(ip);
+    const c = this.clients.get(clientKey(ip));
+    if (!c) return;
+    c.fails = 0;
+    c.locks = 0;
+    c.lockedUntil = 0;
+    if (!c.pending) this.clients.delete(clientKey(ip));
   }
 }

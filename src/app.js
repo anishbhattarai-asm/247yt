@@ -44,7 +44,13 @@ export function createApp(ctx) {
   app.get('/healthz', (req, res) => res.type('text').send('ok'));
 
   app.use('/api', csrfGuard, express.json({ limit: '1mb' }));
-  app.use('/api/auth', authRoutes(ctx, new LoginLimiter()));
+  // One lockout for every check of the panel password (sign-in, password
+  // change, turning the terminal on); its own for the terminal password.
+  const panelLimiter = new LoginLimiter();
+  const terminalLimiter = new LoginLimiter();
+  panelLimiter.on('guessing', (e) => ctx.notifier.guessing({ ...e, what: 'the panel password' }));
+  terminalLimiter.on('guessing', (e) => ctx.notifier.guessing({ ...e, what: 'the terminal password' }));
+  app.use('/api/auth', authRoutes(ctx, panelLimiter));
   const auth = requireAuth(ctx.getConfig);
   app.use('/api/media', auth, mediaRoutes(ctx));
   app.use('/api/config', auth, configRoutes(ctx));
@@ -52,8 +58,7 @@ export function createApp(ctx) {
   app.use('/api/obs', auth, obsRoutes(ctx));
   app.use('/api/youtube', auth, youtubeRoutes(ctx));
   app.use('/api/restream', auth, restreamRoutes(ctx));
-  // Its own limiter: wrong terminal passwords must not lock out sign-in.
-  app.use('/api/terminal', auth, terminalRoutes(ctx, new LoginLimiter()));
+  app.use('/api/terminal', auth, terminalRoutes(ctx, { panel: panelLimiter, terminal: terminalLimiter }));
   app.upgrade = terminalSocket(ctx);
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 
