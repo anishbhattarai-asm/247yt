@@ -329,6 +329,10 @@ login, `sudo` included, so it has its own password:
 2. **Open terminal** asks for the terminal password every time.
 
 Good to know:
+- **Copy and paste:** select text and press **Ctrl+Shift+C** (Ctrl+C also
+  copies while text is selected, and stops the running command when nothing
+  is); paste with **Ctrl+V**. The **Copy** and **Paste** buttons do the same
+  on a phone.
 - **Update panel** types `bash deploy/update.sh` for you; press Enter to run
   it. The panel restarts at the end, which closes the terminal: open it again
   after a few seconds.

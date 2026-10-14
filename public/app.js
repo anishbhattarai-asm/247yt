@@ -1312,6 +1312,23 @@ async function openTerminal(ticket) {
     $('#term-close span').textContent = 'Back';
     x.write('\r\n\x1b[90m[session closed]\x1b[0m\r\n');
   };
+  // Copy and paste like Windows Terminal. Ctrl+Shift+C (the browser's own
+  // "inspect" shortcut otherwise) or Ctrl+C with text selected copies; Ctrl+C
+  // with nothing selected still stops the running command. Ctrl+V and
+  // Ctrl+Shift+V paste: the browser does it and the terminal receives it.
+  x.attachCustomKeyEventHandler((e) => {
+    if (!e.ctrlKey || e.altKey || e.metaKey) return true;
+    const key = e.key.toLowerCase();
+    if (key === 'c' && (e.shiftKey || x.hasSelection())) {
+      if (e.type === 'keydown') {
+        e.preventDefault();
+        if (x.hasSelection()) copyText(x.getSelection());
+      }
+      return false;
+    }
+    if (key === 'v') return false; // not ^V: let the browser's paste happen
+    return true;
+  });
   x.onData((d) => termSend({ t: 'd', v: d }));
   x.onResize(({ cols, rows }) => termSend({ t: 'r', c: cols, r: rows }));
   term.watch = new ResizeObserver(() => {
@@ -1333,6 +1350,44 @@ function closeTerminal() {
 }
 
 $('#term-close').addEventListener('click', closeTerminal);
+
+// The clipboard API needs HTTPS or localhost (the panel always is); the old
+// way is the fallback.
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const area = h('textarea', { style: 'position:fixed;opacity:0' });
+    area.value = text;
+    document.body.append(area);
+    area.select();
+    const ok = document.execCommand('copy');
+    area.remove();
+    if (!ok) return toast('The browser did not allow copying. Select the text and use the right-click menu.', 'bad');
+  }
+  toast('Copied');
+}
+
+// Copy button: the selection, or the whole visible screen if nothing is
+// selected (selecting is fiddly on a phone).
+function terminalScreenText() {
+  const buf = term.x.buffer.active;
+  const lines = [];
+  for (let i = buf.viewportY; i < buf.viewportY + term.x.rows; i++) lines.push(buf.getLine(i)?.translateToString(true) ?? '');
+  return lines.join('\n').replace(/\s+$/, '');
+}
+$('#term-copy').addEventListener('click', () => {
+  if (term.x) copyText(term.x.hasSelection() ? term.x.getSelection() : terminalScreenText());
+});
+$('#term-paste').addEventListener('click', async () => {
+  try {
+    const text = await navigator.clipboard.readText();
+    if (text) term.x?.paste(text);
+  } catch {
+    toast('The browser did not allow reading the clipboard. Press Ctrl+V in the terminal instead.', 'bad');
+  }
+  term.x?.focus();
+});
 
 const KEYS = { esc: '\x1b', tab: '\t', 'ctrl-c': '\x03', 'ctrl-d': '\x04', up: '\x1b[A', down: '\x1b[B', right: '\x1b[C', left: '\x1b[D' };
 for (const b of $$('[data-key]')) {

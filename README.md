@@ -255,6 +255,10 @@ someone who learns the panel password still can't open it.
 - The buttons along the top run common commands (**Disk space**, **Panel
   log**, **Processes**) or type one for you to confirm with Enter (**Update
   panel**). The keys along the bottom are the ones phone keyboards lack.
+- **Copy:** select text, then **Ctrl+Shift+C** (or Ctrl+C while text is
+  selected; with nothing selected Ctrl+C stops the running command).
+  **Paste:** Ctrl+V. On a phone use the **Copy** and **Paste** buttons
+  (Copy with nothing selected copies the whole screen).
 - A session closes after 15 minutes without typing, or when you close it.
   Closing it ends everything started in it (use `tmux` for long jobs).
 - Discord is told every time the terminal opens and whenever its password is
