@@ -3,6 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "description": "Self-hosted 24/7 YouTube streaming control panel",
+  "license": "MIT",
+  "author": "Anish Bhattarai",
   "type": "module",
   "engines": {
     "node": ">=22"

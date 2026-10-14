@@ -5,6 +5,14 @@ image with a music playlist, on one **free Oracle Cloud server**, and control
 it from your phone. Go live from OBS through it whenever you like; the
 playlist carries on when you stop.
 
+> **Status: not tested on Oracle Cloud yet.** The panel itself has been run
+> and tested end to end on Ubuntu 24.04 (inside Windows, WSL) with real
+> YouTube, Twitch, Kick and OBS. The **Deploy to Oracle Cloud** button and
+> the Oracle-specific steps have only been checked offline so far (the stack
+> validated with Terraform and tested against a stand-in for Oracle's API),
+> never on a real Oracle account. If you try it, please open an issue with
+> how it went.
+
 ![Overview](docs/images/overview.png)
 
 - **Set and forget:** reconnects by itself after network drops, restarts a
@@ -50,6 +58,9 @@ Any Ubuntu 22.04/24.04 server with systemd works too (x86 or ARM).
 ## Install
 
 ### Easiest: one button, no commands
+
+Not tried on a real Oracle account yet (see **Status** above); if it fails,
+the **By hand** steps below work on any Ubuntu server.
 
 [![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/anishbhattarai-asm/247yt/releases/download/oracle-stack/stream-panel-oracle.zip)
 
@@ -352,4 +363,8 @@ without writing to it):
 
 Settings from the command line: `node cli.js set mode lofi`, or for secrets
 `printf '%s\n' "$KEY" | node cli.js set youtube.streamKey --stdin`.
+
+## License
+
+MIT, copyright (c) 2026 Anish Bhattarai. See [LICENSE](LICENSE).
 

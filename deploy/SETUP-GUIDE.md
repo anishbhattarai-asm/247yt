@@ -37,6 +37,11 @@ most of it waiting. You need: a computer, a phone, a Visa or Mastercard
 It creates the server, its network and firewall rules, and installs the
 panel, all from Oracle's website. No SSH, no commands.
 
+**Not tested on a real Oracle account yet:** the stack has only been checked
+offline (Terraform validation and a test against a stand-in for Oracle). If
+the button doesn't work for you, the **By hand** steps below do the same, and
+an issue describing what happened helps.
+
 [![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/anishbhattarai-asm/247yt/releases/download/oracle-stack/stream-panel-oracle.zip)
 
 1. Click the button and sign in to Oracle. **Create stack** opens with this
