@@ -50,7 +50,7 @@ u { text-underline-offset: 3px; }
   fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round;
 }
 
-/* ---------- buttons ---------- */
+/* buttons */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   height: 38px; padding: 0 14px; border-radius: 9px;
@@ -77,7 +77,7 @@ u { text-underline-offset: 3px; }
 .icon-btn.small .i { width: 15px; height: 15px; }
 :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
-/* ---------- login ---------- */
+/* login */
 .login { min-height: 100dvh; display: grid; place-items: center; padding: 16px; }
 .login-card {
   width: min(380px, 100%); padding: 28px; display: grid; gap: 16px;
@@ -90,7 +90,7 @@ u { text-underline-offset: 3px; }
 .form-error { margin: 0; color: var(--accent); min-height: 1.5em; font-size: 14px; }
 #login-hint:empty { display: none; }
 
-/* ---------- top bar ---------- */
+/* top bar */
 .topbar {
   position: sticky; top: 0; z-index: 10;
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
@@ -117,7 +117,7 @@ u { text-underline-offset: 3px; }
 .pill[data-tone="info"] .dot { background: var(--info); }
 @keyframes pulse { 50% { opacity: .35; } }
 
-/* ---------- layout ---------- */
+/* layout */
 .tab { max-width: 1100px; margin: 0 auto; padding: 20px 16px 48px; display: grid; gap: 16px; }
 .tab > * { min-width: 0; } /* grid items: let wide content scroll inside, not widen the page */
 .card {
@@ -134,7 +134,7 @@ u { text-underline-offset: 3px; }
 }
 .banner .i { color: var(--warn); margin-top: 2px; }
 
-/* ---------- now playing ---------- */
+/* now playing */
 .now { padding: 22px; }
 .now-head { display: flex; gap: 16px; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; }
 .eyebrow { font-size: 12px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--accent); }
@@ -169,7 +169,7 @@ u { text-underline-offset: 3px; }
 .warn { color: var(--warn); }
 .bad { color: var(--accent); }
 
-/* ---------- library ---------- */
+/* library */
 .lib-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 /* min-width: 0 lets a flex item shrink below its content (then it scrolls
    inside instead of pushing the page wider). */
@@ -231,7 +231,7 @@ input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent);
 .rename { height: 32px; }
 .empty { text-align: center; padding: 24px; }
 
-/* ---------- settings ---------- */
+/* settings */
 /* Masonry: each column stacks its own cards, so a tall card never leaves a
    hole beside a short one (a row-aligned grid did). */
 .settings { display: block; columns: 2; column-gap: 16px; }
@@ -252,6 +252,10 @@ input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent);
 .link-btn:hover { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); }
 a.btn { text-decoration: none; }
 .btn-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.rs-list { display: grid; gap: 8px; }
+.rs-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+.rs-main { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.rs-row .switch { margin: 0; }
 .split { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .i.i-sm { width: 14px; height: 14px; opacity: .7; }
 .row { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); }
@@ -264,7 +268,7 @@ a.btn { text-decoration: none; }
 .seg-inline { width: fit-content; }
 fieldset:disabled, .locked input, .locked select { opacity: .6; }
 
-/* ---------- logs ---------- */
+/* logs */
 .log-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .log {
   margin: 0; height: min(70vh, 640px); overflow: auto; padding: 14px; border-radius: var(--radius);
@@ -275,7 +279,7 @@ fieldset:disabled, .locked input, .locked select { opacity: .6; }
 .log .s { color: #8ab4ff; }
 .log .e { color: #ff8a8f; }
 
-/* ---------- dialog + toasts ---------- */
+/* dialog + toasts */
 .dialog {
   border: 1px solid var(--border); border-radius: 14px; padding: 22px; width: min(420px, calc(100% - 32px));
   background: var(--surface); color: var(--text); box-shadow: var(--shadow);

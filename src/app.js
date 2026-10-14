@@ -11,6 +11,7 @@ import { configRoutes } from './routes/config.js';
 import { mediaRoutes } from './routes/media.js';
 import { obsRoutes } from './routes/obs.js';
 import { youtubeRoutes } from './routes/youtube.js';
+import { restreamRoutes } from './routes/restream.js';
 import { streamRoutes } from './routes/stream.js';
 
 const PUBLIC_DIR = fileURLToPath(new URL('../public/', import.meta.url));
@@ -41,6 +42,7 @@ export function createApp(ctx) {
   app.use('/api/stream', auth, streamRoutes(ctx));
   app.use('/api/obs', auth, obsRoutes(ctx));
   app.use('/api/youtube', auth, youtubeRoutes(ctx));
+  app.use('/api/restream', auth, restreamRoutes(ctx));
   app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 
   // Revalidate every time (cheap 304s): after an update a browser must never

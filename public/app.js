@@ -20,7 +20,7 @@ const state = {
   uploads: new Map(), // client-side upload rows: key -> { name, done, total, failed, cancelled, id }
 };
 
-// ------------------------------------------------------------------ helpers
+// helpers
 
 class ApiError extends Error {
   constructor(message, status) {
@@ -135,7 +135,7 @@ async function act(fn, success) {
   }
 }
 
-// ------------------------------------------------------------------ auth
+// auth
 
 function showLogin(passwordSet = true) {
   $('#app').hidden = true;
@@ -169,7 +169,7 @@ $('#logout').addEventListener('click', async () => {
   showLogin();
 });
 
-// ------------------------------------------------------------------ tabs
+// tabs
 
 function selectTab(tab) {
   state.tab = tab;
@@ -185,7 +185,7 @@ function selectTab(tab) {
 }
 for (const b of $$('.tabs button')) b.addEventListener('click', () => selectTab(b.dataset.tab));
 
-// ------------------------------------------------------------------ polling
+// polling
 
 let timers = {};
 function loop(name, fn, interval) {
@@ -207,7 +207,7 @@ document.addEventListener('visibilitychange', () => {
 });
 const busyMedia = () => state.media?.items.some((i) => ['downloading', 'uploading', 'queued', 'normalizing'].includes(i.status)) || state.uploads.size > 0;
 
-// ------------------------------------------------------------------ status / overview
+// status / overview
 
 async function loadStatus() {
   state.status = await api('GET', '/api/stream/status');
@@ -296,6 +296,8 @@ function renderStatus() {
   setStatusText($('#acc-obs'), obsStatus(s.obs));
   setStatusText($('#acc-yt'), ytOverview(s.youtube));
   renderYouTube(s.youtube);
+  setStatusText($('#st-also'), rsOverview(s.restream ?? []));
+  renderRestream(s.restream ?? []);
 
   renderNowTick();
   if (state.tab === 'library') markOnAir();
@@ -360,7 +362,7 @@ $('#copy-url').addEventListener('click', async () => {
   if (url) await act(() => navigator.clipboard.writeText(url), 'Link copied');
 });
 
-// ------------------------------------------------------------------ library
+// library
 
 const KIND = {
   video: { icon: 'film', label: 'videos', hint: 'Videos play in order (or shuffled) in Video mode. Every file is converted once to the stream format.' },
@@ -647,7 +649,7 @@ function renderUploads() {
   )));
 }
 
-// ------------------------------------------------------------------ settings
+// settings
 
 async function loadConfig() {
   state.config = await api('GET', '/api/config');
@@ -772,7 +774,7 @@ for (const b of $$('[data-clear]')) {
   });
 }
 
-// ------------------------------------------------------------------ YouTube account
+// YouTube account
 
 const YT_HEALTH = { good: ['Excellent', 'ok'], ok: ['OK', 'ok'], bad: ['Poor', 'bad'], noData: ['No data', 'muted'] };
 const YT_LIFE = {
@@ -921,7 +923,82 @@ async function removeYtClient() {
   await saveConfig({ youtube: { clientId: '', clientSecret: '' } }, 'Removed');
 }
 
-// ------------------------------------------------------------------ OBS
+// more platforms
+
+const RS_STATE = {
+  live: ['Live', 'ok'], connecting: ['Connecting', 'muted'], retrying: ['Retrying', 'warn'],
+  waiting: ['Waiting for the stream', 'muted'], off: ['Off', 'muted'],
+};
+const RS_URL = {
+  twitch: 'rtmp://live.twitch.tv/app',
+  kick: 'rtmps://fa723fc1b171.global-contribute.live-video.net/app',
+  facebook: 'rtmps://live-api-s.facebook.com:443/rtmp',
+  custom: '',
+};
+const RS_HELP = {
+  twitch: 'Twitch: Creator Dashboard > Settings > Stream > Primary Stream key > Copy.',
+  kick: 'Kick: Dashboard > Settings > Stream. Use the Stream URL shown there if it differs from the one above.',
+  facebook: 'Facebook: Live Producer > Streaming software > use a persistent stream key.',
+  custom: 'Any RTMP or RTMPS server: paste its server URL and stream key.',
+};
+
+function rsOverview(list) {
+  const on = list.filter((d) => d.enabled);
+  if (!on.length) return ['—', 'muted'];
+  const text = on.map((d) => `${d.name} ${(RS_STATE[d.state]?.[0] ?? d.state).toLowerCase()}`).join(' · ');
+  return [text, on.every((d) => d.state === 'live') ? 'ok' : on.some((d) => d.state === 'retrying') ? 'warn' : 'muted'];
+}
+
+let rsKey = '';
+function renderRestream(list) {
+  const key = JSON.stringify(list);
+  if (key === rsKey) return;
+  rsKey = key;
+  $('#rs-list').replaceChildren(...(list.length ? list.map(rsRow) : [h('p', { class: 'muted small' }, 'No other platforms yet.')]));
+}
+
+function rsRow(d) {
+  const [label, tone] = RS_STATE[d.state] ?? [d.state, 'muted'];
+  return h('div', { class: 'rs-row' },
+    h('div', { class: 'rs-main' },
+      h('div', {}, h('b', {}, d.name), ' ', h('span', { class: `small ${tone}` }, label)),
+      d.lastError && d.state !== 'live' ? h('div', { class: 'small bad wrap' }, d.lastError) : null),
+    h('label', { class: 'switch' },
+      h('input', { type: 'checkbox', checked: d.enabled, onchange: (e) => act(async () => {
+        await api('PATCH', `/api/restream/${d.id}`, { enabled: e.target.checked });
+        rsKey = '';
+        await loadStatus();
+      }, e.target.checked ? `${d.name} on: it joins at the next keyframe` : `${d.name} off`) }),
+      h('span', {}, 'On')),
+    h('button', { type: 'button', class: 'btn btn-small btn-ghost', onclick: () => removeRs(d) }, icon('trash'), 'Remove'));
+}
+
+async function removeRs(d) {
+  if (!(await confirmDialog(`Remove ${d.name}?`, 'The panel stops streaming there and deletes its stream key.', 'Remove'))) return;
+  await act(async () => {
+    await api('DELETE', `/api/restream/${d.id}`);
+    rsKey = '';
+    await loadStatus();
+  }, `${d.name} removed`);
+}
+
+function rsPlatformChanged() {
+  const p = $('#rs-platform').value;
+  $('#rs-url').value = RS_URL[p];
+  $('#rs-help').textContent = RS_HELP[p];
+}
+$('#rs-platform').addEventListener('change', rsPlatformChanged);
+rsPlatformChanged();
+
+$('#rs-add').addEventListener('click', () => act(async () => {
+  const platform = $('#rs-platform').value;
+  await api('POST', '/api/restream', { platform, url: $('#rs-url').value.trim(), key: $('#rs-key').value.trim() });
+  $('#rs-key').value = '';
+  rsKey = '';
+  await loadStatus();
+}, 'Platform added: it joins at the next keyframe'));
+
+// OBS
 
 async function loadObs() {
   state.obs = await api('GET', '/api/obs');
@@ -960,7 +1037,7 @@ $('#btn-obs-pass').addEventListener('click', async () => {
 
 $('#btn-test-alert').addEventListener('click', () => act(() => api('POST', '/api/config/test-notification'), 'Test alert sent — check Discord'));
 
-// ------------------------------------------------------------------ logs
+// logs
 
 async function loadLogs() {
   const { seq, lines } = await api('GET', `/api/stream/logs?since=${state.logSeq}`);
@@ -996,7 +1073,7 @@ $('#log-pause').addEventListener('click', () => {
   $('#log-pause use').setAttribute('href', state.logPaused ? '#i-play' : '#i-pause');
 });
 
-// ------------------------------------------------------------------ boot
+// boot
 
 (async () => {
   const hash = location.hash.slice(1);

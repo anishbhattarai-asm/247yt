@@ -25,6 +25,7 @@ export function streamRoutes(ctx) {
       discord: { configured: Boolean(cfg.notifications.discordWebhookUrl), ...ctx.notifier.stats },
       obs: ctx.ingest.status(),
       youtube: ctx.youtube.status(),
+      restream: ctx.restream.status(),
     });
   });
 

@@ -181,7 +181,6 @@ export class Supervisor extends EventEmitter {
     if (this.pipeline.running) await this.pipeline.stop();
   }
 
-  // ------------------------------------------------------------
 
   #launch() {
     this.nextRetryAt = null;

@@ -83,7 +83,7 @@ zone (`Asia/Kathmandu`).
 ## 5. Try the self-healing
 
 | Test | Command (in Ubuntu) | What should happen |
-|---|---|---|
+|-|-|-|
 | Service restart | `sudo systemctl restart stream-panel` | Stream comes back within seconds, same YouTube broadcast |
 | Crash | `sudo pkill -9 -f "node .*server.js"` | systemd restarts it after 5 s; stream resumes |
 | Reboot | In PowerShell: `wsl --shutdown`, then reopen Ubuntu | Service starts by itself, stream resumes, Discord gets the new panel link |

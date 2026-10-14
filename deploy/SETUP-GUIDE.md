@@ -4,21 +4,21 @@ From nothing to a 24/7 YouTube stream on your own free server. About an hour,
 most of it waiting. You need: a computer, a phone, a Visa or Mastercard
 **credit** card, and a YouTube channel.
 
----
-
 ## 1. Oracle Cloud account
 
 1. Go to **oracle.com/cloud/free** and sign up.
    - Use your **home connection, no VPN or proxy** — VPNs are the most common
      reason for an instant rejection.
    - Name and address must match the card's billing details.
-   - **Card:** Visa or Mastercard **credit** card with international
-     transactions enabled. RuPay, PIN debit, prepaid and virtual cards are
-     refused. Oracle places a temporary hold of about ₹100; it disappears in
-     3–5 days. You are not charged.
-   - **Home region is permanent** and the free server only works there. Pick
-     **Hyderabad** (Mumbai is closest but usually out of free servers). Distance
-     barely matters — the stream goes from the server to YouTube, not to you.
+   - **Card:** a Visa or Mastercard **credit** card with **international
+     payments enabled**, from any country. Domestic-only, PIN debit, prepaid
+     and virtual cards are usually refused. Oracle places a small temporary
+     hold (about 1 US dollar in your currency); it disappears within days.
+     You are not charged.
+   - **Home region is permanent** and the free server only works there. Any
+     region works: pick one that tends to have free Ampere servers available
+     rather than simply the closest. Distance barely matters, since the
+     stream goes from the server to YouTube, not to you.
    - If you're rejected, use Oracle's support form. Don't make more accounts.
 2. Once the account works, upgrade it: **Billing → Upgrade to Pay As You Go**.
    - This stays **free** as long as you only create what this guide says.
@@ -35,7 +35,7 @@ most of it waiting. You need: a computer, a phone, a Visa or Mastercard
 **Compute → Instances → Create instance**
 
 | Setting | Value |
-|---|---|
+|-|-|
 | Image | **Canonical Ubuntu 24.04** (the aarch64 one) |
 | Shape | **Ampere → VM.Standard.A1.Flex**, **2 OCPU, 12 GB** memory |
 | SSH keys | **Generate a key pair for me → Save private key** (keep this file safe) |
@@ -45,8 +45,8 @@ Click **Create**. Don't add anything else (no extra volumes, no load balancers)
 — everything above is inside the free limits; extra things may not be.
 
 **"Out of host capacity"** is normal for free servers. Nothing was created, so
-just press Create again. Indian regions have only one "availability domain", so
-there's nothing to switch — keep retrying (every few minutes), or wait for the
+just press Create again. If your region has only one "availability domain",
+there's nothing to switch: keep retrying (every few minutes), or wait for the
 Pay As You Go upgrade, which usually fixes it.
 
 When it says **Running**, copy its **Public IP address**.
@@ -208,7 +208,7 @@ address out.
 **In OBS** (the person going live):
 
 | OBS setting | Value |
-|---|---|
+|-|-|
 | Settings → Stream → Service | **Custom...** |
 | Server | the `srt://...` address from the panel |
 | Stream Key | leave empty |
@@ -230,10 +230,35 @@ in OBS as usual. The panel's Overview says **Live from OBS**, Discord says
   keep the server's CPU free, so it has to match.)
 - **Skip** is disabled while OBS is live; stop streaming in OBS to return.
 
+## 9. More platforms: Twitch, Kick, Facebook (optional)
+
+The panel can send the same stream to other platforms at the same time as
+YouTube.
+
+1. Get the platform's stream key:
+   - **Twitch**: Creator Dashboard → **Settings → Stream** → Primary Stream
+     key → **Copy**.
+   - **Kick**: Dashboard → **Stream URL & Key**. Kick emails a security code
+     before showing the key. Copy the **Stream URL** too.
+   - **Facebook**: Live Producer → **Streaming software** → use a persistent
+     stream key.
+   - **Anything else**: its RTMP or RTMPS server URL and stream key.
+2. Panel → **Settings → More platforms** → choose the platform, paste the key
+   (and the server URL if it differs from the one filled in) → **Add
+   platform**. It joins at the next keyframe, within a couple of seconds.
+3. Each platform has its own **On** switch and status (Live, Connecting,
+   Retrying). A platform that fails never affects YouTube or the others, and
+   reconnects by itself; Discord tells you when one drops and comes back.
+
+Each platform uploads another ~3 Mbps (about 1 TB a month; Oracle's free
+allowance is 10 TB a month). Extra platforms follow the main stream: when the
+panel's stream is stopped, they stop too. OBS takeover reaches every platform.
+Check each platform's rules on 24/7 pre-recorded streams before leaving it on.
+
 ## Troubleshooting
 
 | Problem | Do this |
-|---|---|
+|-|-|
 | Can't open the panel | Get the newest link from Discord / `journalctl -u stream-panel \| grep 'panel URL'` |
 | Forgot the password | On the server: `cd stream-panel && npm run set-password` |
 | Stream won't start | Panel status shows why (no stream key, nothing ready to play, …) |

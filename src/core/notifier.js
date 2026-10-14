@@ -50,7 +50,7 @@ export class Notifier {
     this.stats = { sent: 0, failed: 0, lastError: null };
   }
 
-  // ---------------------------------------------------------- event templates
+  // event templates
 
   started({ dest }) {
     this.#send('start', 'start', { title: 'Stream started', fields: [{ name: 'Destination', value: mono(dest) }, { name: 'Started', value: when() }] });
@@ -168,6 +168,22 @@ export class Notifier {
     this.#send('obs', 'warning', { title: 'OBS was refused', description: reason });
   }
 
+  // Multistream destinations (Twitch, Kick, ...): one alert per outage.
+  restreamDown({ name, error }) {
+    this.#send('restream', 'dropped', {
+      title: `${name}: stream dropped`,
+      description: `The panel lost the connection to ${name} and is reconnecting. YouTube and the other platforms are not affected.`,
+      fields: error ? [{ name: 'FFmpeg said', value: `\`\`\`${String(error).replace(/`/g, "'").slice(0, 900)}\`\`\``, inline: false }] : [],
+    });
+  }
+
+  restreamUp({ name, downtime }) {
+    this.#send('restream', 'online', {
+      title: `${name}: back online`,
+      description: `Streaming to ${name} again after **${human(downtime)}**.`,
+    });
+  }
+
   // YouTube's own health verdict (needs Connect YouTube).
   ytHealth({ status, previous, issues = [] }) {
     const label = { good: 'Excellent', ok: 'OK', bad: 'Poor', noData: 'No data' }[status] ?? status;
@@ -206,7 +222,7 @@ export class Notifier {
     return this.queue;
   }
 
-  // ---------------------------------------------------------- transport
+  // transport
 
   #send(event, kind, { title, description = '', fields = [] }) {
     const cfg = this.getConfig().notifications;

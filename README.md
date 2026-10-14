@@ -17,6 +17,8 @@ playlist carries on when you stop.
   plain copy (about 1-2% of the server).
 - **OBS takeover:** OBS streams into the panel, not straight to YouTube, so
   nobody else needs your stream key.
+- **More platforms at once:** the same stream to Twitch, Kick, Facebook or
+  any RTMP server, each reconnecting on its own, with almost no extra CPU.
 - **Alerts in Discord:** stream started or dropped, back online, YouTube
   health turning Poor, the panel's new link, OBS going live.
 - **Optional YouTube connection:** sets up the broadcast for you and shows
@@ -30,13 +32,14 @@ playlist carries on when you stop.
 ## What you need
 
 | | Cost | Needed for |
-|---|---|---|
+|-|-|-|
 | Oracle Cloud account (Always Free ARM server) | Free (a card is asked for at sign-up) | Running it 24/7 |
 | A YouTube channel with live streaming enabled | Free | Streaming |
 | A Discord server where you can add a webhook | Free | Alerts (optional, recommended) |
 | A Healthchecks.io account | Free | Alerts if the whole server dies (optional) |
 | A Google Cloud project | Free | Connect YouTube (optional) |
 | OBS Studio 27 or newer | Free | Going live from OBS (optional) |
+| Twitch, Kick or other accounts | Free | Streaming to more platforms (optional) |
 
 Any Ubuntu 22.04/24.04 server with systemd works too (x86 or ARM).
 
@@ -133,6 +136,12 @@ server. **Disconnect** (or myaccount.google.com/permissions) removes access.
   **Backgrounds** and music under **Tracks**, then pick Lofi and the
   background in Settings → Playback.
 - Drag to reorder; changes apply at the next file without interrupting.
+- **Big files** (up to 100 GB) work. While converting, the server needs free
+  disk for the file plus its converted copy; the original is deleted after.
+  Conversion runs at low priority, so a very long video takes hours but never
+  disturbs the stream. Files already in the stream format (1080p30 H.264
+  High, constant bitrate 3000 kbps or more, keyframe every 2 s, AAC 44.1 kHz
+  stereo) skip conversion entirely.
 
 ### 4. Alerts
 
@@ -159,9 +168,33 @@ server. **Disconnect** (or myaccount.google.com/permissions) removes access.
 4. **Start Streaming** in OBS: within seconds the panel says *Live from OBS*.
    Stop in OBS and the playlist carries on where it was cut.
 
+### 6. Stream to more platforms (optional)
+
+<img src="docs/images/more-platforms.png" width="520" alt="More platforms card">
+
+1. Get the platform's stream key:
+   - **Twitch**: Creator Dashboard → **Settings → Stream** → Primary Stream
+     key → **Copy**.
+   - **Kick**: Dashboard → **Stream URL & Key**. Kick emails a security code
+     before showing the key. Copy the **Stream URL** too.
+   - **Facebook**: Live Producer → **Streaming software** → use a persistent
+     stream key.
+   - **Anything else**: its RTMP or RTMPS server URL and stream key.
+2. Panel → **Settings → More platforms** → choose the platform, paste the key
+   (and the server URL if it differs from the one filled in) → **Add
+   platform**. It joins at the next keyframe, within a couple of seconds.
+3. Each platform has its own **On** switch and status (Live, Connecting,
+   Retrying). A platform that fails never affects YouTube or the others, and
+   reconnects by itself; Discord tells you when one drops and comes back.
+
+Each platform uploads another ~3 Mbps (about 1 TB a month; Oracle's free
+allowance is 10 TB a month). Extra platforms follow the main stream: when the
+panel's stream is stopped, they stop too. OBS takeover reaches every platform.
+Check each platform's rules on 24/7 pre-recorded streams before leaving it on.
+
 ## Keep your keys private
 
-- All secrets (stream key, Discord and Healthchecks URLs, the OBS password,
+- All secrets (stream keys, Discord and Healthchecks URLs, the OBS password,
   the Google client secret and sign-in) live in **one file on the server**,
   `data/config.json`, readable only by the service's user (mode 600). The
   panel never sends them back to the browser.
@@ -177,7 +210,7 @@ server. **Disconnect** (or myaccount.google.com/permissions) removes access.
 ## Day to day
 
 | Task | How |
-|---|---|
+|-|-|
 | Find the panel link | Discord, or `journalctl -u stream-panel \| grep 'panel URL'` |
 | See what's happening | Panel → **Logs**, or `journalctl -u stream-panel -f` |
 | Restart everything | `sudo systemctl restart stream-panel` (resumes where it was) |
@@ -215,7 +248,7 @@ Environment variables (all optional; they override `data/config.json`
 without writing to it):
 
 | Variable | Effect |
-|---|---|
+|-|-|
 | `STREAM_KEY` | YouTube stream key |
 | `DISCORD_WEBHOOK_URL` | Discord alerts |
 | `HEALTHCHECK_URL` | Healthchecks.io ping URL |

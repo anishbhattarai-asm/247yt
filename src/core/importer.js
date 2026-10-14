@@ -85,7 +85,7 @@ export class Importer {
     }
   }
 
-  // ---------------------------------------------------------- URL import
+  // URL import
 
   async importUrl({ url, kind = 'auto', title }) {
     if (!KINDS.includes(kind)) throw badRequest(`kind must be one of ${KINDS.join(', ')}`);
@@ -137,7 +137,7 @@ export class Importer {
     }
   }
 
-  // ---------------------------------------------------------- chunked upload
+  // chunked upload
 
   async createUpload({ filename, size, kind = 'auto' }) {
     if (!KINDS.includes(kind)) throw badRequest(`kind must be one of ${KINDS.join(', ')}`);
@@ -184,7 +184,7 @@ export class Importer {
     return this.library.get(id);
   }
 
-  // ---------------------------------------------------------- shared
+  // shared
 
   async #queue(id, kind, file, bytes) {
     await this.library.update(id, { status: 'queued', incoming: file, bytes, progress: null, error: null });

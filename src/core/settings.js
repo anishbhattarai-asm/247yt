@@ -42,7 +42,7 @@ export const DEFAULTS = {
     discordWebhookUrl: '',
     events: {
       start: true, stopped: true, dropped: true, online: true, frozen: true,
-      skipped: true, failing: true, panelUrl: true, lowDisk: true, highCpu: true, obs: true, youtube: true,
+      skipped: true, failing: true, panelUrl: true, lowDisk: true, highCpu: true, obs: true, youtube: true, restream: true,
     },
   },
   healthcheck: { url: '', intervalMinutes: 5 },
@@ -51,8 +51,12 @@ export const DEFAULTS = {
   // the panel cuts over cleanly and returns to the playlist when OBS stops.
   // publicHost: what OBS connects to; empty = this server's detected public IP.
   obs: { enabled: false, port: 9710, passphrase: null, publicHost: '' },
+  // Multistream (restream.js): [{ id, name, platform, url, key, enabled }].
+  // Keys are secrets; changed only through /api/restream, never a patch.
+  restream: { destinations: [] },
   limits: {
-    maxUploadBytes: 20 * 1024 ** 3,
+    // A sanity cap; the real limit is free disk (file + converted copy).
+    maxUploadBytes: 100 * 1024 ** 3,
     minFreeDiskBytes: 5 * 1024 ** 3,
   },
 };
@@ -87,6 +91,8 @@ export class Settings {
   async load() {
     const raw = await this.store.load();
     const merged = deepMerge(structuredClone(DEFAULTS), raw);
+    // The old 20 GB cap refused single 40-50 GB videos; lift it if unchanged.
+    if (merged.limits.maxUploadBytes === 20 * 1024 ** 3) merged.limits.maxUploadBytes = DEFAULTS.limits.maxUploadBytes;
     const needsSecret = !merged.auth.sessionSecret || !merged.obs.passphrase;
     merged.auth.sessionSecret ||= randomBytes(32).toString('base64url');
     merged.obs.passphrase ||= newObsPassphrase();
@@ -126,6 +132,7 @@ export class Settings {
     const out = structuredClone(cfg);
     for (const key of SECRETS) setPath(out, key, { set: Boolean(getPath(cfg, key)) });
     out.auth = { passwordSet: Boolean(cfg.auth.passwordHash), sessionHours: cfg.auth.sessionHours };
+    out.restream.destinations = cfg.restream.destinations.map(({ key, ...d }) => ({ ...d, key: { set: Boolean(key) } }));
     out.envOverrides = this.envOverrides();
     return out;
   }
@@ -159,7 +166,7 @@ export class Settings {
 // SRT wants 10–79 characters; URL-safe so it can sit in OBS's server URL.
 const newObsPassphrase = () => randomBytes(18).toString('base64url');
 
-// ---------------------------------------------------------------- validation
+// validation
 
 export class ValidationError extends Error {
   constructor(message) {
@@ -257,7 +264,7 @@ export function validatePatch(patch, { profileLocked = false } = {}) {
   return out;
 }
 
-// ---------------------------------------------------------------- helpers
+// helpers
 
 function flatten(obj, prefix = '') {
   const out = [];

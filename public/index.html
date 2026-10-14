@@ -37,6 +37,7 @@
       <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.5 3.5 5.3 3.5 8.5s-1 6-3.5 8.5c-2.5-2.5-3.5-5.3-3.5-8.5s1-6 3.5-8.5z"/></symbol>
       <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/></symbol>
       <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8.5 5v14M15.5 5v14"/></symbol>
+      <symbol id="i-share" viewBox="0 0 24 24"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="m8.3 10.8 7.4-4.1M8.3 13.2l7.4 4.1"/></symbol>
       <symbol id="i-external" viewBox="0 0 24 24"><path d="M14 4h6v6"/><path d="M20 4 11 13"/><path d="M19 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h4"/></symbol>
       <symbol id="i-yt" viewBox="0 0 24 24"><rect x="2.5" y="5.5" width="19" height="13" rx="3.5"/><path d="M10 9.2v5.6l4.8-2.8z" fill="currentColor"/></symbol>
       <symbol id="i-cam" viewBox="0 0 24 24"><rect x="3" y="6.5" width="12.5" height="11" rx="2"/><path d="m15.5 10.5 5.5-3v9l-5.5-3z"/></symbol>
@@ -104,6 +105,7 @@
             <div><dt>File changes</dt><dd id="st-boundaries">—</dd></div>
             <div><dt>Timing drift</dt><dd id="st-lag">—</dd></div>
             <div><dt>This month</dt><dd id="st-egress">—</dd></div>
+            <div class="span2"><dt>Also streaming to</dt><dd id="st-also">—</dd></div>
           </dl>
           <button id="btn-restart" class="btn btn-ghost btn-small" title="Clean reconnect; viewers don't notice"><svg class="i"><use href="#i-restart"/></svg>Restart connection</button>
         </article>
@@ -236,6 +238,20 @@
         <div class="form-actions"><button class="btn btn-primary" type="submit">Save</button></div>
       </form>
 
+      <form class="card form-card" data-form="restream">
+        <h2><svg class="i"><use href="#i-share"/></svg>More platforms</h2>
+        <p class="muted small">Send the same stream to Twitch, Kick, Facebook or any RTMP server at the same time. Each platform connects and reconnects on its own, and adds about 3 Mbps of upload (around 1 TB a month; Oracle's free allowance is 10 TB).</p>
+        <div id="rs-list" class="rs-list"></div>
+        <div class="row">
+          <label class="field"><span>Platform</span>
+            <select id="rs-platform"><option value="twitch">Twitch</option><option value="kick">Kick</option><option value="facebook">Facebook</option><option value="custom">Other (RTMP)</option></select></label>
+          <label class="field"><span>Stream key</span><input id="rs-key" type="password" autocomplete="off" placeholder="Paste the stream key"></label>
+        </div>
+        <label class="field"><span>Server URL</span><input id="rs-url" autocomplete="off" placeholder="rtmp:// or rtmps://"></label>
+        <small class="muted" id="rs-help"></small>
+        <div class="form-actions"><button type="button" class="btn btn-primary" id="rs-add"><svg class="i"><use href="#i-share"/></svg>Add platform</button></div>
+      </form>
+
       <form class="card form-card" data-form="alerts">
         <h2><svg class="i"><use href="#i-bell"/></svg>Alerts</h2>
         <label class="field">
@@ -255,6 +271,7 @@
           <label><input type="checkbox" name="notifications.events.lowDisk"> disk runs low</label>
           <label><input type="checkbox" name="notifications.events.highCpu"> CPU stays high</label>
           <label><input type="checkbox" name="notifications.events.obs"> OBS goes live, ends or is refused</label>
+          <label><input type="checkbox" name="notifications.events.restream"> another platform drops or comes back</label>
         </fieldset>
         <label class="field">
           <span>Healthchecks.io ping URL <em class="state" data-state="healthcheck.url"></em><button type="button" class="link-btn" data-clear="healthcheck.url" hidden>Remove</button></span>

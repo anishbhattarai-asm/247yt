@@ -124,7 +124,7 @@ export class YouTube extends EventEmitter {
     if (c.refreshToken && c.tokenClientId !== c.clientId) await this.disconnect({ revoke: false });
   }
 
-  // ------------------------------------------------------------ sign-in
+  // sign-in
 
   async startConnect() {
     if (!this.configured) throw Object.assign(new Error('Save the Client ID and secret first.'), { status: 409 });
@@ -233,7 +233,7 @@ export class YouTube extends EventEmitter {
     return this.status();
   }
 
-  // ------------------------------------------------------------ checks
+  // checks
 
   #tick() {
     if (!this.connected || this.busy) return;
@@ -356,7 +356,7 @@ export class YouTube extends EventEmitter {
     this.emit('broadcastEnded', { title, replacement, error });
   }
 
-  // ------------------------------------------------------------ actions
+  // actions
 
   // A scheduled broadcast (Auto-start ON, Auto-stop OFF) bound to our key; a
   // new reusable key if YouTube doesn't know ours. Returns { broadcast, keyChanged }.
@@ -504,7 +504,7 @@ export class YouTube extends EventEmitter {
     return this.status();
   }
 
-  // ------------------------------------------------------------ transport
+  // transport
 
   async #oauth(path, params) {
     const res = await fetch(`${this.oauthBase}/${path}`, {

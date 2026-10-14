@@ -143,7 +143,6 @@ export class Ingest extends EventEmitter {
     };
   }
 
-  // ------------------------------------------------------------
 
   #setState(state) {
     if (this.state === state) return;

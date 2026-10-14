@@ -49,8 +49,10 @@ export class Pipeline extends EventEmitter {
   // getDest(session): { url, format } — rtmp URL, or a file path in tests
   // onQuarantine(id, error): persist it (awaited before the next file starts,
   //   so the playlist can't hand the same broken file straight back)
-  constructor({ playlist, getDest, onQuarantine = async () => {}, maxLead = 1.5, log = () => {} }) {
+  // tap(buf): every joined chunk as it goes to the pusher (multistream).
+  constructor({ playlist, getDest, onQuarantine = async () => {}, maxLead = 1.5, log = () => {}, tap = null }) {
     super();
+    this.tap = tap;
     this.playlist = playlist;
     this.getDest = getDest;
     this.onQuarantine = onQuarantine;
@@ -193,7 +195,7 @@ export class Pipeline extends EventEmitter {
     };
   }
 
-  // ------------------------------------------------------------ pusher
+  // pusher
 
   #startPusher() {
     this.session++;
@@ -310,7 +312,7 @@ export class Pipeline extends EventEmitter {
     setTimeout(() => this.#endPusher(p), 3000).unref(); // in case the feeder ends first
   }
 
-  // ------------------------------------------------------------ feeder
+  // feeder
 
   #startFeeder() {
     const p = this.pusher;
@@ -390,6 +392,7 @@ export class Pipeline extends EventEmitter {
     f.joiner.limit = this.#limitFor(p, f);
     const out = f.joiner.push(chunk);
     if (out && this.pusher === p && !p.proc.stdin.destroyed && !p.proc.stdin.writableEnded) {
+      this.tap?.(out);
       if (!p.proc.stdin.write(out)) {
         f.waitingDrain = true;
         f.proc.stdout.pause();

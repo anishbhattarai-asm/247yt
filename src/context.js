@@ -10,6 +10,7 @@ import { LogBuffer, makeRedactor } from './core/logbuffer.js';
 import { Normalizer } from './core/normalizer.js';
 import { Notifier } from './core/notifier.js';
 import { Pipeline } from './core/pipeline.js';
+import { Restream } from './core/restream.js';
 import { Playlist } from './core/playlist.js';
 import { Settings } from './core/settings.js';
 import { Stats } from './core/stats.js';
@@ -29,7 +30,7 @@ export async function createContext({ dataDir, mediaDir, dest = null, stallTimeo
   const redact = makeRedactor(() => {
     const c = getConfig();
     return [c.youtube.streamKey, c.youtube.clientSecret, c.youtube.refreshToken, c.notifications.discordWebhookUrl,
-      c.healthcheck.url, c.auth.sessionSecret, c.obs.passphrase];
+      c.healthcheck.url, c.auth.sessionSecret, c.obs.passphrase, ...c.restream.destinations.map((d) => d.key)];
   });
   const logs = new LogBuffer({ redact, echo: echoLogs });
 
@@ -55,9 +56,11 @@ export async function createContext({ dataDir, mediaDir, dest = null, stallTimeo
     });
   const destLabel = dest || envDest ? 'test output' : 'YouTube';
 
+  const restream = new Restream({ getConfig, log: logs.for('multistream') });
   const pipeline = new Pipeline({
     playlist,
     getDest: destFor,
+    tap: (buf) => restream.feed(buf),
     log: logs.for('stream'),
     onQuarantine: (id, error) => library.setQuarantined(id, true, error),
   });
@@ -82,7 +85,7 @@ export async function createContext({ dataDir, mediaDir, dest = null, stallTimeo
     resumeStream: () => supervisor.release(),
   });
 
-  // --- normalizer -> library
+  // normalizer -> library
   const normLog = logs.for('normalize');
   normalizer.on('progress', async ({ id, mode }) => {
     if (library.get(id)?.status === 'queued') {
@@ -108,7 +111,7 @@ export async function createContext({ dataDir, mediaDir, dest = null, stallTimeo
     normalizer.enqueue({ id, kind: item.kind, input: library.abs(item.incoming), outputDir: library.outputDir });
   }
 
-  // --- supervisor / tunnel -> Discord
+  // supervisor / tunnel -> Discord
   supervisor.on('started', () => notifier.started({ dest: destLabel }));
   supervisor.on('stopped', (e) => notifier.stopped(e));
   supervisor.on('dropped', (e) => notifier.dropped(e));
@@ -119,7 +122,7 @@ export async function createContext({ dataDir, mediaDir, dest = null, stallTimeo
   supervisor.on('skipped', (e) => notifier.skipped(e));
   tunnel.on('url', (e) => notifier.panelUrl(e));
 
-  // --- OBS takeover (ingest.js): OBS -> panel -> YouTube, one connection
+  // OBS takeover (ingest.js): OBS -> panel -> YouTube, one connection
   ingest.on('connected', ({ info }) => {
     if (!supervisor.desired) {
       return ingest.reject('The 24/7 stream is stopped in the panel. Press Start in the panel first, then go live in OBS.');
@@ -135,12 +138,20 @@ export async function createContext({ dataDir, mediaDir, dest = null, stallTimeo
   ingest.on('rejected', (e) => notifier.obsRejected(e));
   // Stopped from the panel while OBS was on air: tell OBS, don't let it
   // think it's live.
-  // --- YouTube account (optional, youtube.js) -> Discord
+  // YouTube account (optional, youtube.js) -> Discord
   youtube.on('health', (e) => notifier.ytHealth(e));
   youtube.on('broadcastEnded', (e) => notifier.ytBroadcastEnded(e));
   youtube.on('authLost', (e) => notifier.ytAuthLost(e));
 
+  // multistream (restream.js): follows the main stream
+  restream.on('down', (e) => notifier.restreamDown(e));
+  restream.on('up', (e) => notifier.restreamUp(e));
+  pipeline.on('session-end', ({ intent }) => {
+    if (intent === 'planned') restream.restartAll(); // fresh timestamps with the weekly reconnect
+  });
+
   supervisor.on('stopped', () => {
+    restream.stopAll();
     pipeline.endLive();
     if (['connected', 'live'].includes(ingest.state)) ingest.reject('The stream was stopped in the panel.');
   });
@@ -149,7 +160,7 @@ export async function createContext({ dataDir, mediaDir, dest = null, stallTimeo
 
   return {
     settings, getConfig, redact, logs, state, library, normalizer, playlist, pipeline,
-    supervisor, notifier, stats, health, tunnel, importer, ingest, youtube,
+    supervisor, notifier, stats, health, tunnel, importer, ingest, youtube, restream,
     async start() {
       await supervisor.boot();
       health.start();
@@ -162,6 +173,7 @@ export async function createContext({ dataDir, mediaDir, dest = null, stallTimeo
       tunnel.close();
       ingest.close();
       youtube.close();
+      restream.close();
       health.close();
       await supervisor.shutdown();
       // Alerts may be retrying through a network outage; don't hold shutdown.
