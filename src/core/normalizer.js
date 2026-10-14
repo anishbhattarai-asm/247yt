@@ -66,7 +66,10 @@ export function videoArgs(input, output, src, p) {
   const duration = Number(src.video.duration) || src.formatDuration;
   return [
     '-i', input,
-    ...(src.audio ? [] : ['-f', 'lavfi', '-i', `anullsrc=r=${p.sampleRate}:cl=stereo`]),
+    // No audio: an inaudible noise floor (about -91 dB), not digital silence.
+    // Silence encodes to ~2 kbps and YouTube then warns "audio bitrate 0"
+    // (seen live); this keeps a normal audio bitrate and sounds silent.
+    ...(src.audio ? [] : ['-f', 'lavfi', '-i', `anoisesrc=color=pink:amplitude=0.0001:sample_rate=${p.sampleRate}`]),
     '-map', '0:v:0', '-map', src.audio ? '0:a:0' : '1:a:0',
     '-vf', videoFilter(p),
     // apad + output -t: audio exactly as long as video (no TS overlap at joins).
