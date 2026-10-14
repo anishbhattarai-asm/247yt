@@ -21,7 +21,11 @@ export function parseTunnelUrl(line) {
 // Does the public link reach this panel? (A deleted name fails DNS.)
 async function reachesPanel(url) {
   const res = await fetch(`${url}/healthz`, { redirect: 'manual', signal: AbortSignal.timeout(10_000) });
-  return res.status === 200 && (await res.text()).trim() === 'ok';
+  if (res.status !== 200) {
+    await res.body?.cancel(); // don't leave the connection hanging on every failed check
+    return false;
+  }
+  return (await res.text()).trim() === 'ok';
 }
 
 // Is the internet up at all? Without it, a dead link proves nothing.
@@ -84,6 +88,12 @@ export class Tunnel extends EventEmitter {
       if (this.proc === proc) this.proc = null;
       this.url = null;
       if (this.closed) return;
+      // Stopped on purpose (link dropped, or switched off and on again): a
+      // new one right away, and it is not a crash.
+      if (proc.stoppedOnPurpose) {
+        this.log('cloudflared stopped; starting it again for a new link');
+        return this.start();
+      }
       if (Date.now() - startedAt > 300_000) this.failures = 0;
       this.failures++;
       // Not installed: check again every 5 min. Crashed: back off up to 1 min.
@@ -119,6 +129,7 @@ export class Tunnel extends EventEmitter {
       if (this.misses < this.maxMisses || this.proc !== proc) return;
       this.misses = 0;
       this.log(`panel link stopped answering (${url}): Cloudflare dropped it. Getting a new one`);
+      proc.stoppedOnPurpose = true;
       proc.kill();
     } finally {
       this.checking = false;
@@ -153,6 +164,9 @@ export class Tunnel extends EventEmitter {
     this.closed = true;
     clearInterval(this.watcher);
     this.watcher = null;
-    this.proc?.kill();
+    if (this.proc) {
+      this.proc.stoppedOnPurpose = true; // if it is switched on again before this exits
+      this.proc.kill();
+    }
   }
 }

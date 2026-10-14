@@ -28,6 +28,14 @@ export function authRoutes(ctx, limiter) {
     return null;
   };
 
+  // Sessions only end when their cookie is next checked; a terminal checks
+  // it once, when it opens. So whenever everyone is signed out, close open
+  // terminals and cancel unused terminal tickets too.
+  const endTerminalSessions = () => {
+    ctx.terminal.closeAll();
+    ctx.terminal.tickets.clear();
+  };
+
   r.get('/session', async (req, res) => {
     await ctx.settings.refresh();
     const { auth } = ctx.getConfig();
@@ -103,6 +111,7 @@ export function authRoutes(ctx, limiter) {
   // keep working until it expires. This ends every session but this one.
   r.post('/logout-others', requireAuth(ctx.getConfig), async (req, res) => {
     await ctx.settings.rotateSessionSecret();
+    endTerminalSessions(); // a terminal opened from a signed-out browser must not stay open
     setSession(req, res, ctx.getConfig());
     log(`signed out every other browser (from ${clientIp(req)})`);
     res.json({ ok: true });
@@ -122,6 +131,7 @@ export function authRoutes(ctx, limiter) {
       }
       attempt.succeed();
       await ctx.settings.setPasswordHash(await hashPassword(next));
+      endTerminalSessions();
       setSession(req, res, ctx.getConfig()); // new secret: everyone else is signed out
       log('password changed');
       res.json({ ok: true });

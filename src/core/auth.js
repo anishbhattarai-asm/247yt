@@ -19,18 +19,25 @@ const MAX_WAITING = 200; // beyond that: "busy, try again"
 let checking = 0;
 const waiting = [];
 async function scryptP(...args) {
-  if (checking >= MAX_CHECKS) {
+  if (checking < MAX_CHECKS) {
+    checking++;
+  } else {
     if (waiting.length >= MAX_WAITING) throw Object.assign(new Error('The panel is busy. Try again in a moment.'), { status: 503 });
-    await new Promise((resolve) => waiting.push(resolve));
+    await new Promise((resolve) => waiting.push(resolve)); // a finished check hands its slot over
   }
-  checking++;
   try {
     return await scryptRaw(...args);
   } finally {
-    checking--;
-    waiting.shift()?.();
+    // Hand the slot straight to the next in line (keeping `checking` as it
+    // is), so nothing can start in between and run a 5th check.
+    const next = waiting.shift();
+    if (next) next();
+    else checking--;
   }
 }
+
+// For tests: how many checks are running and waiting right now.
+export const passwordCheckLoad = () => ({ running: checking, waiting: waiting.length });
 const N = 16384;
 const R = 8;
 const P = 1;
@@ -131,7 +138,7 @@ export class LoginLimiter extends EventEmitter {
     this.alertAfter = alertAfter;
     this.alertWindowMs = alertWindowMs;
     this.clients = new Map(); // key -> { fails, pending, lockedUntil, locks }
-    this.recent = []; // [time, key] of recent wrong passwords, from anyone
+    this.recent = new Map(); // minute -> { tries, keys } of wrong passwords, from anyone
     this.alertedAt = -Infinity; // never alerted yet
   }
 
@@ -183,15 +190,30 @@ export class LoginLimiter extends EventEmitter {
       c.locks++;
       c.fails = 0;
     }
-    this.recent.push([now, key]);
-    while (this.recent.length && this.recent[0][0] < now - this.alertWindowMs) this.recent.shift();
-    if (this.recent.length >= this.alertAfter && now - this.alertedAt >= this.alertWindowMs) {
+    // Counted per minute, so a flood costs a few small buckets, not a list
+    // of every try. Distinct addresses are counted up to 1000 per minute.
+    const minute = Math.floor(now / 60_000);
+    let bucket = this.recent.get(minute);
+    if (!bucket) {
+      bucket = { tries: 0, keys: new Set() };
+      this.recent.set(minute, bucket);
+    }
+    bucket.tries++;
+    if (bucket.keys.size < 1000) bucket.keys.add(key);
+    const oldest = minute - Math.ceil(this.alertWindowMs / 60_000);
+    for (const m of this.recent.keys()) {
+      if (m > oldest) break; // buckets are kept in time order
+      this.recent.delete(m);
+    }
+    let tries = 0;
+    const keys = new Set();
+    for (const b of this.recent.values()) {
+      tries += b.tries;
+      for (const k of b.keys) if (keys.size < 1000) keys.add(k);
+    }
+    if (tries >= this.alertAfter && now - this.alertedAt >= this.alertWindowMs) {
       this.alertedAt = now;
-      this.emit('guessing', {
-        tries: this.recent.length,
-        addresses: new Set(this.recent.map(([, k]) => k)).size,
-        minutes: Math.round(this.alertWindowMs / 60_000),
-      });
+      this.emit('guessing', { tries, addresses: keys.size, minutes: Math.round(this.alertWindowMs / 60_000) });
     }
   }
 

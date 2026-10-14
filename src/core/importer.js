@@ -9,12 +9,15 @@
 //
 // Either way the file lands in media/incoming/ and is queued for normalizing.
 
+import { lookup as dnsLookup } from 'node:dns';
 import { lookup } from 'node:dns/promises';
 import { createWriteStream } from 'node:fs';
 import { mkdir, open, rm, statfs } from 'node:fs/promises';
+import http from 'node:http';
+import https from 'node:https';
 import { BlockList, isIP } from 'node:net';
 import path from 'node:path';
-import { Readable, Transform } from 'node:stream';
+import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
 export const CHUNK_SIZE = 32 * 1024 * 1024;
@@ -25,13 +28,20 @@ const badRequest = (message) => Object.assign(new Error(message), { status: 400 
 // Imports fetch from the public internet only: never this server itself, its
 // private network or the cloud's metadata service (which knows things about
 // the server). Checked for every address a name resolves to, on every
-// redirect.
+// redirect, and at the moment of connecting (so a name can't answer one
+// address for the check and another for the download).
 const INSIDE = new BlockList();
 for (const [net, bits] of [
   ['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8], ['169.254.0.0', 16],
   ['172.16.0.0', 12], ['192.0.0.0', 24], ['192.168.0.0', 16], ['198.18.0.0', 15], ['224.0.0.0', 3],
 ]) INSIDE.addSubnet(net, bits, 'ipv4');
-for (const [net, bits] of [['::', 127], ['fc00::', 7], ['fe80::', 10], ['ff00::', 8], ['64:ff9b::', 96]]) INSIDE.addSubnet(net, bits, 'ipv6');
+for (const [net, bits] of [
+  ['::', 127], ['fc00::', 7], ['fe80::', 10], ['ff00::', 8],
+  // IPv6 forms that carry an IPv4 address inside: NAT64, 6to4, Teredo.
+  ['64:ff9b::', 96], ['64:ff9b:1::', 48], ['2002::', 16], ['2001::', 32],
+]) INSIDE.addSubnet(net, bits, 'ipv6');
+
+const INSIDE_MESSAGE = 'That link points inside this server\'s own network, which imports may not reach';
 
 export function isInsideAddress(address) {
   const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(address);
@@ -42,21 +52,59 @@ export function isInsideAddress(address) {
 export async function assertPublicUrl(url, resolve = (host) => lookup(host, { all: true, verbatim: true })) {
   const host = new URL(url).hostname.replace(/^\[|\]$/g, '');
   const addresses = isIP(host) ? [host] : (await resolve(host)).map((a) => a.address);
-  if (!addresses.length || addresses.some(isInsideAddress)) {
-    throw badRequest('That link points inside this server\'s own network, which imports may not reach');
-  }
+  if (!addresses.length || addresses.some(isInsideAddress)) throw badRequest(INSIDE_MESSAGE);
 }
 
-// fetch() that checks every hop of a redirect chain with assertPublicUrl.
-export async function fetchPublic(url, { signal, headers, maxRedirects = 8, check = assertPublicUrl } = {}) {
+// A dns.lookup for the connection itself that refuses inside addresses.
+// resolve: dns.lookup-style (tests pass a stand-in).
+export function publicLookup(resolve = dnsLookup) {
+  return (hostname, options, callback) => {
+    if (typeof options === 'function') [callback, options] = [options, {}];
+    resolve(hostname, { ...options, all: true }, (err, addresses) => {
+      if (err) return callback(err);
+      if (!addresses.length || addresses.some((a) => isInsideAddress(a.address))) {
+        return callback(Object.assign(new Error(INSIDE_MESSAGE), { status: 400, code: 'EINSIDE' }));
+      }
+      if (options.all) return callback(null, addresses);
+      callback(null, addresses[0].address, addresses[0].family);
+    });
+  };
+}
+
+function get(url, { signal, headers, lookupFn }) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const req = (u.protocol === 'https:' ? https : http).get(u, { headers, signal, lookup: lookupFn }, resolve);
+    req.on('error', (err) => reject(err.code === 'EINSIDE' ? badRequest(INSIDE_MESSAGE) : err));
+  });
+}
+
+// A download that checks every hop of a redirect chain (assertPublicUrl for
+// literal addresses, which are never looked up) and connects only to an
+// address it checked. Returns { status, ok, headers.get, body (a stream),
+// finalUrl, text() }.
+export async function fetchPublic(url, { signal, headers, maxRedirects = 8, check = assertPublicUrl, lookupFn = publicLookup() } = {}) {
   let current = url;
   for (let hop = 0; hop <= maxRedirects; hop++) {
     await check(current);
-    const res = await fetch(current, { redirect: 'manual', signal, headers });
-    if (![301, 302, 303, 307, 308].includes(res.status)) return Object.assign(res, { finalUrl: current });
-    await res.body?.cancel();
-    const next = res.headers.get('location');
-    if (!next) throw new Error(`The server answered HTTP ${res.status} without saying where to`);
+    const res = await get(current, { signal, headers, lookupFn });
+    if (![301, 302, 303, 307, 308].includes(res.statusCode)) {
+      return {
+        status: res.statusCode,
+        ok: res.statusCode >= 200 && res.statusCode < 300,
+        headers: { get: (name) => [res.headers[name.toLowerCase()]].flat().filter((v) => v !== undefined).join(', ') || null },
+        body: res,
+        finalUrl: current,
+        async text() {
+          let out = '';
+          for await (const chunk of res) out += chunk;
+          return out;
+        },
+      };
+    }
+    res.resume(); // discard the redirect's own body
+    const next = res.headers.location;
+    if (!next) throw new Error(`The server answered HTTP ${res.statusCode} without saying where to`);
     current = new URL(next, current).toString();
     if (!/^https?:$/.test(new URL(current).protocol)) throw badRequest('That link redirects to something other than http(s)');
   }
@@ -149,9 +197,13 @@ export class Importer {
     let file = null;
     try {
       const res = await this.fetch(url, { signal: abort.signal, headers: { 'user-agent': 'stream-panel/0.1' } });
-      if (!res.ok) throw new Error(`The server answered HTTP ${res.status}`);
+      if (!res.ok) {
+        res.body.resume();
+        throw new Error(`The server answered HTTP ${res.status}`);
+      }
       const type = res.headers.get('content-type') ?? '';
       if (type.includes('text/html')) {
+        res.body.resume();
         throw new Error('That link opened a web page, not a file. Use a direct download link (Drive: make it "Anyone with the link").');
       }
       entry.total = Number(res.headers.get('content-length')) || null;
@@ -167,7 +219,7 @@ export class Importer {
           cb(null, chunk);
         },
       });
-      await pipeline(Readable.fromWeb(res.body), counter, createWriteStream(file));
+      await pipeline(res.body, counter, createWriteStream(file));
       this.active.delete(id);
       await this.#queue(id, kind, file, entry.received);
     } catch (err) {

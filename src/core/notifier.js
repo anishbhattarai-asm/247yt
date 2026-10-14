@@ -168,8 +168,6 @@ export class Notifier {
     this.#send('obs', 'warning', { title: 'OBS was refused', description: reason });
   }
 
-  // Terminal tab: it gives full control of the server, so every session
-  // and every password change is reported.
   // Wrong passwords keep coming (LoginLimiter): someone may be guessing.
   guessing({ what, tries, addresses, minutes }) {
     this.#send('guessing', 'warning', {
@@ -179,6 +177,8 @@ export class Notifier {
     });
   }
 
+  // Terminal tab: it gives full control of the server, so every session
+  // and every password change is reported.
   terminalOpened({ ip }) {
     this.#send('terminal', 'warning', {
       title: 'Terminal opened',
