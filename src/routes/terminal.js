@@ -11,7 +11,7 @@
 
 import { Router } from 'express';
 import { WebSocketServer } from 'ws';
-import { hashPassword, verifyPassword } from '../core/auth.js';
+import { hashPassword, terminalPasswordProblem, verifyPassword } from '../core/auth.js';
 import { isAuthenticated } from '../middleware/requireAuth.js';
 import { clientIp } from '../middleware/security.js';
 
@@ -65,10 +65,12 @@ export function terminalRoutes(ctx, limiter) {
     } else if (!(await checkTerminal(req, res, current))) {
       return;
     }
+    const weak = terminalPasswordProblem(next);
+    if (weak) return res.status(400).json({ error: weak });
     if (await verifyPassword(next, auth.passwordHash)) {
       return res.status(400).json({ error: 'Use a different password from the panel\'s: that is the point of it.' });
     }
-    await ctx.settings.setTerminalHash(await hashPassword(next)); // 400 if too short
+    await ctx.settings.setTerminalHash(await hashPassword(next));
     log(`terminal password ${first ? 'set' : 'changed'} from ${ip}`);
     ctx.notifier.terminalPassword({ ip, change: first ? 'set' : 'changed' });
     res.json(ctx.terminal.status());

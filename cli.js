@@ -21,7 +21,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { hashPassword, MIN_PASSWORD, verifyPassword } from './src/core/auth.js';
+import { hashPassword, MIN_PASSWORD, terminalPasswordProblem, verifyPassword } from './src/core/auth.js';
 import { newSetupCode, SECRETS, Settings, setPath } from './src/core/settings.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -92,9 +92,11 @@ async function setTerminalPassword(args) {
   if (args.includes('--stdin')) {
     password = await readStdinLine();
   } else {
-    password = await askHidden(`New terminal password (min ${MIN_PASSWORD} chars, not the panel's): `);
+    password = await askHidden('New terminal password (14+ chars, lower and upper case, a digit, a symbol; not the panel\'s): ');
     if ((await askHidden('Again: ')) !== password) throw new Error('Passwords do not match');
   }
+  const weak = terminalPasswordProblem(password);
+  if (weak) throw new Error(weak);
   const settings = await new Settings(dataDir).load();
   const panel = settings.get().auth.passwordHash;
   if (panel && (await verifyPassword(password, panel))) throw new Error('Use a different password from the panel\'s');

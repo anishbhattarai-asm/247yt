@@ -16,6 +16,22 @@ const P = 1;
 const KEYLEN = 32;
 export const MIN_PASSWORD = 8;
 
+// The terminal password guards a shell, so it has stricter rules than the
+// panel's. Returns what is missing, or null when it is good enough.
+export const TERMINAL_RULES = [
+  ['at least 14 characters', (p) => p.length >= 14],
+  ['a lowercase letter', (p) => /[a-z]/.test(p)],
+  ['an uppercase letter', (p) => /[A-Z]/.test(p)],
+  ['a digit', (p) => /[0-9]/.test(p)],
+  ['a symbol (like ! # % - _ ?)', (p) => /[^A-Za-z0-9\s]/.test(p)],
+];
+
+export function terminalPasswordProblem(password) {
+  if (typeof password !== 'string') return 'Type a terminal password';
+  const missing = TERMINAL_RULES.filter(([, ok]) => !ok(password)).map(([rule]) => rule);
+  return missing.length ? `The terminal password needs ${missing.join(', ')}.` : null;
+}
+
 export async function hashPassword(password) {
   if (typeof password !== 'string' || password.length < MIN_PASSWORD) {
     throw Object.assign(new Error(`Password must be at least ${MIN_PASSWORD} characters`), { status: 400 });

@@ -372,9 +372,10 @@
         <form id="term-set-form" class="form-card">
           <label class="field"><span>Panel password</span><input type="password" id="term-panel-pass" autocomplete="current-password" required></label>
           <div class="row">
-            <label class="field"><span>New terminal password</span><input type="password" id="term-new" autocomplete="new-password" minlength="8" required></label>
-            <label class="field"><span>Same again</span><input type="password" id="term-new2" autocomplete="new-password" minlength="8" required></label>
+            <label class="field"><span>New terminal password</span><input type="password" id="term-new" autocomplete="new-password" minlength="14" required></label>
+            <label class="field"><span>Same again</span><input type="password" id="term-new2" autocomplete="new-password" minlength="14" required></label>
           </div>
+          <ul class="checklist small pw-rules" data-rules-for="term-new" aria-live="polite"></ul>
           <small class="muted">Make it different from the panel password: someone who learns that one still can't open a shell. Forgot it? On the server: <code>node cli.js set-terminal-password</code></small>
           <p id="term-set-error" class="form-error" role="alert"></p>
           <div class="form-actions"><button class="btn btn-primary" type="submit"><svg class="i"><use href="#i-lock"/></svg>Turn on the terminal</button></div>
@@ -394,9 +395,10 @@
           <form id="term-change-form" class="form-card">
             <label class="field"><span>Current terminal password</span><input type="password" id="term-cur" autocomplete="off" required></label>
             <div class="row">
-              <label class="field"><span>New terminal password</span><input type="password" id="term-chg" autocomplete="new-password" minlength="8"></label>
-              <label class="field"><span>Same again</span><input type="password" id="term-chg2" autocomplete="new-password" minlength="8"></label>
+              <label class="field"><span>New terminal password</span><input type="password" id="term-chg" autocomplete="new-password" minlength="14"></label>
+              <label class="field"><span>Same again</span><input type="password" id="term-chg2" autocomplete="new-password" minlength="14"></label>
             </div>
+            <ul class="checklist small pw-rules" data-rules-for="term-chg" aria-live="polite"></ul>
             <p id="term-change-error" class="form-error" role="alert"></p>
             <div class="form-actions">
               <button class="btn btn-danger" type="button" id="term-off">Turn off</button>

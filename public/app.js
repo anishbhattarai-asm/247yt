@@ -1417,6 +1417,26 @@ $('#term-open-form').addEventListener('submit', async (e) => {
   }
 });
 
+// The terminal password rules (the server checks the same ones), ticked off
+// as you type.
+const TERMINAL_RULES = [
+  ['At least 14 characters', (p) => p.length >= 14],
+  ['A lowercase letter', (p) => /[a-z]/.test(p)],
+  ['An uppercase letter', (p) => /[A-Z]/.test(p)],
+  ['A digit', (p) => /[0-9]/.test(p)],
+  ['A symbol, like ! # % - _ ?', (p) => /[^A-Za-z0-9\s]/.test(p)],
+];
+for (const list of $$('[data-rules-for]')) {
+  const input = $(`#${list.dataset.rulesFor}`);
+  const show = () => list.replaceChildren(...TERMINAL_RULES.map(([label, ok]) => {
+    const met = ok(input.value);
+    return h('li', { class: met ? 'ok' : 'muted' }, icon(met ? 'check' : 'x'), h('span', {}, label));
+  }));
+  input.addEventListener('input', show);
+  input.form.addEventListener('reset', () => setTimeout(show)); // after the fields clear
+  show();
+}
+
 $('#term-set-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const err = $('#term-set-error');

@@ -324,8 +324,9 @@ don't need SSH (or an SSH key) for day-to-day work. It works like an SSH
 login, `sudo` included, so it has its own password:
 
 1. Panel → **Terminal** → your panel password, then a new **terminal
-   password** (a different one) twice → **Turn on the terminal**. Discord is
-   told.
+   password** twice → **Turn on the terminal**. Discord is told. It must be
+   different from the panel password and have at least 14 characters,
+   lowercase and uppercase letters, a digit and a symbol.
 2. **Open terminal** asks for the terminal password every time.
 
 Good to know:

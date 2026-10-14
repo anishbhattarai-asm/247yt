@@ -247,8 +247,12 @@ panel, restart things, check disk space, look at files. It works like SSH
 (`sudo` included), so it has **its own password**, separate from the panel's:
 someone who learns the panel password still can't open it.
 
-1. **Terminal** tab → type the panel password and choose a terminal password
-   (a different one) → **Turn on the terminal**.
+1. **Terminal** tab → type the panel password and choose a terminal password:
+   a different one, at least 14 characters with lowercase and uppercase
+   letters, a digit and a symbol (the form ticks them off as you type) →
+   **Turn on the terminal**.
+
+   <img src="docs/images/terminal-setup.png" width="520" alt="Turning the terminal on">
 2. To use it: type the terminal password → **Open terminal**. It asks every
    time.
 
