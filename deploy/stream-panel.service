@@ -23,12 +23,15 @@ KillSignal=SIGTERM
 TimeoutStopSec=30
 LimitNOFILE=65536
 
-# Hardening: the app only needs its own folder.
+# Hardening: the panel writes only its settings (data/) and videos (media/).
+# Its own code, deploy/ scripts and the terminal's session program are
+# read-only to it, so a bug in the panel (or in FFmpeg reading a video)
+# can't plant code that runs later outside this sandbox.
 NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=full
 ProtectHome=read-only
-ReadWritePaths=__DIR__
+ReadWritePaths=__DIR__/data __DIR__/media
 
 [Install]
 WantedBy=multi-user.target

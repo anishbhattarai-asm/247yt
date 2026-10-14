@@ -21,6 +21,11 @@ install_unit() { # $1 = file in deploy/
     "$DIR/deploy/$1" | "${SUDO[@]}" tee "/etc/systemd/system/$1" >/dev/null
 }
 
+# The panel's sandbox can write only these two folders, and systemd won't
+# start it if one is missing.
+[ -d "$DIR/data" ] || "${SUDO[@]}" install -d -m 700 -o "$PANEL_USER" -g "$(id -gn "$PANEL_USER")" "$DIR/data"
+[ -d "$DIR/media" ] || "${SUDO[@]}" install -d -m 755 -o "$PANEL_USER" -g "$(id -gn "$PANEL_USER")" "$DIR/media"
+
 install_unit stream-panel.service
 install_unit stream-panel-terminal.socket
 install_unit stream-panel-terminal@.service

@@ -290,8 +290,9 @@ someone who learns the panel password still can't open it.
   link; it shows no panel pages and needs no password of its own.
 - The Terminal tab is off until you give it its own password, and asks for
   it every time. Wrong guesses lock out like wrong sign-ins (without locking
-  you out of the panel). The panel itself stays in its systemd sandbox; each
-  terminal session runs as a separate service.
+  you out of the panel). The panel itself stays in its systemd sandbox, where
+  it can write only its settings and videos (`data/`, `media/`), never its
+  own code; each terminal session runs as a separate service.
 
 ## Day to day
 
