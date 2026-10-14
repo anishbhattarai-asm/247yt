@@ -931,13 +931,13 @@ const RS_STATE = {
 };
 const RS_URL = {
   twitch: 'rtmp://live.twitch.tv/app',
-  kick: 'rtmps://fa723fc1b171.global-contribute.live-video.net/app',
+  kick: 'rtmps://fa723fc1b171.global-contribute.live-video.net:443/app',
   facebook: 'rtmps://live-api-s.facebook.com:443/rtmp',
   custom: '',
 };
 const RS_HELP = {
   twitch: 'Twitch: Creator Dashboard > Settings > Stream > Primary Stream key > Copy.',
-  kick: 'Kick: Dashboard > Settings > Stream. Use the Stream URL shown there if it differs from the one above.',
+  kick: 'Kick: Dashboard > Stream URL & Key (Kick emails a security code first). Copy only the Stream Key and keep the server URL above: Kick shows it without "/app", this form is the tested one.',
   facebook: 'Facebook: Live Producer > Streaming software > use a persistent stream key.',
   custom: 'Any RTMP or RTMPS server: paste its server URL and stream key.',
 };

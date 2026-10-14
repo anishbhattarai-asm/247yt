@@ -175,14 +175,16 @@ server. **Disconnect** (or myaccount.google.com/permissions) removes access.
 1. Get the platform's stream key:
    - **Twitch**: Creator Dashboard → **Settings → Stream** → Primary Stream
      key → **Copy**.
-   - **Kick**: Dashboard → **Stream URL & Key**. Kick emails a security code
-     before showing the key. Copy the **Stream URL** too.
+   - **Kick**: Dashboard → **Stream URL & Key**. Kick emails a 6-digit
+     security code before it shows the key. Copy only the **Stream Key**:
+     keep the server URL the panel fills in (Kick's page shows it without
+     `/app` at the end; the filled-in form is the one tested with Kick).
    - **Facebook**: Live Producer → **Streaming software** → use a persistent
      stream key.
    - **Anything else**: its RTMP or RTMPS server URL and stream key.
 2. Panel → **Settings → More platforms** → choose the platform, paste the key
-   (and the server URL if it differs from the one filled in) → **Add
-   platform**. It joins at the next keyframe, within a couple of seconds.
+   → **Add platform**. The server URL is filled in for Twitch, Kick and
+   Facebook; change it only for **Other**. It joins within a few seconds.
 3. Each platform has its own **On** switch and status (Live, Connecting,
    Retrying). A platform that fails never affects YouTube or the others, and
    reconnects by itself; Discord tells you when one drops and comes back.

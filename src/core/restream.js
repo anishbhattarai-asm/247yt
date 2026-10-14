@@ -16,7 +16,8 @@ import { FFMPEG, terminate } from './ffmpeg.js';
 
 export const PLATFORMS = {
   twitch: { name: 'Twitch', url: 'rtmp://live.twitch.tv/app' },
-  kick: { name: 'Kick', url: 'rtmps://fa723fc1b171.global-contribute.live-video.net/app' },
+  // Tested with Kick: its page shows the URL without "/app"; this form works.
+  kick: { name: 'Kick', url: 'rtmps://fa723fc1b171.global-contribute.live-video.net:443/app' },
   facebook: { name: 'Facebook', url: 'rtmps://live-api-s.facebook.com:443/rtmp' },
   custom: { name: 'Custom', url: '' },
 };

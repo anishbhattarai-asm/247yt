@@ -178,6 +178,8 @@ being completely dead (power, network, Oracle stopped it).
   Dropbox, or any direct download) — the server downloads it itself, much faster
   than uploading from home. Uploading from your computer works too.
 - Every file is converted once to the stream format; long videos take a while.
+  Files up to 100 GB work: the server needs free disk for the file plus its
+  converted copy while converting, then deletes the original.
   For instant adds, export videos as **1920×1080, 30 fps, H.264 High 4.1,
   constant bitrate 3000 kbps or more, keyframe every 2 s (60 frames), AAC
   44.1 kHz stereo** — those are copied, not converted.
@@ -238,14 +240,16 @@ YouTube.
 1. Get the platform's stream key:
    - **Twitch**: Creator Dashboard → **Settings → Stream** → Primary Stream
      key → **Copy**.
-   - **Kick**: Dashboard → **Stream URL & Key**. Kick emails a security code
-     before showing the key. Copy the **Stream URL** too.
+   - **Kick**: Dashboard → **Stream URL & Key**. Kick emails a 6-digit
+     security code before it shows the key. Copy only the **Stream Key**:
+     keep the server URL the panel fills in (Kick's page shows it without
+     `/app` at the end; the filled-in form is the one tested with Kick).
    - **Facebook**: Live Producer → **Streaming software** → use a persistent
      stream key.
    - **Anything else**: its RTMP or RTMPS server URL and stream key.
 2. Panel → **Settings → More platforms** → choose the platform, paste the key
-   (and the server URL if it differs from the one filled in) → **Add
-   platform**. It joins at the next keyframe, within a couple of seconds.
+   → **Add platform**. The server URL is filled in for Twitch, Kick and
+   Facebook; change it only for **Other**. It joins within a few seconds.
 3. Each platform has its own **On** switch and status (Live, Connecting,
    Retrying). A platform that fails never affects YouTube or the others, and
    reconnects by itself; Discord tells you when one drops and comes back.
@@ -266,5 +270,8 @@ Check each platform's rules on 24/7 pre-recorded streams before leaving it on.
 | Restart everything | `sudo systemctl restart stream-panel` (the stream resumes where it was) |
 | Update to a new version | `bash deploy/update.sh` |
 | Oracle stopped the server | Console → Instances → **Start**. Everything comes back by itself. (Pay As You Go prevents this.) |
+| A platform under More platforms says **Retrying** | Its stream key is wrong or was reset: **Remove** it and add it again with the new key. YouTube and the other platforms are not affected. |
+| Kick won't show the stream key | Kick emails a 6-digit code first. After several tries it says "Too many attempts": wait a few minutes, then **Send Again**. |
+| An upload or link import is refused for disk space | The server needs room for the file plus its converted copy. Delete media you no longer play. |
 | OBS can't connect ("Failed to connect") | Port 9710 UDP open in the security list (step 8)? OBS input switched on? Address copied after the last **New password**? |
 | OBS connects but is refused | Discord / the panel say which OBS setting to change |
