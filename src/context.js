@@ -2,6 +2,7 @@
 
 import { mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
+import { Finder } from './core/finder.js';
 import { Health } from './core/health.js';
 import { Importer } from './core/importer.js';
 import { Ingest } from './core/ingest.js';
@@ -21,7 +22,7 @@ import { YouTube } from './core/youtube.js';
 
 // dest(session) overrides the YouTube destination (tests write .flv files).
 // STREAM_DEST=<file with %d> or <rtmp url> does the same from the environment.
-export async function createContext({ dataDir, mediaDir, dest = null, stallTimeout = 30, echoLogs = true, obsBind = '0.0.0.0', youtubeOptions = {} } = {}) {
+export async function createContext({ dataDir, mediaDir, dest = null, stallTimeout = 30, echoLogs = true, obsBind = '0.0.0.0', finderBind = '0.0.0.0', youtubeOptions = {} } = {}) {
   await mkdir(dataDir, { recursive: true });
   await mkdir(mediaDir, { recursive: true });
 
@@ -76,6 +77,7 @@ export async function createContext({ dataDir, mediaDir, dest = null, stallTimeo
   const stats = new Stats({ mediaDir });
   const health = new Health({ getConfig, supervisor, stats, notifier, state, log: logs.for('health') });
   const tunnel = new Tunnel({ getConfig, port: getConfig().server.port, state, log: logs.for('tunnel') });
+  const finder = new Finder({ getConfig, tunnel, bind: finderBind, log: logs.for('tunnel') });
   const importer = new Importer({ library, normalizer, getConfig, log: logs.for('import') });
   const ingest = new Ingest({ getConfig, bind: obsBind, log: logs.for('obs') });
   const youtube = new YouTube({
@@ -160,17 +162,19 @@ export async function createContext({ dataDir, mediaDir, dest = null, stallTimeo
 
   return {
     settings, getConfig, redact, logs, state, library, normalizer, playlist, pipeline,
-    supervisor, notifier, stats, health, tunnel, importer, ingest, youtube, restream,
+    supervisor, notifier, stats, health, tunnel, finder, importer, ingest, youtube, restream,
     async start() {
       await supervisor.boot();
       health.start();
       tunnel.start();
+      finder.apply();
       ingest.start();
       youtube.start();
     },
     // Service stop: flush the stream but keep `desired` for the next boot.
     async shutdown() {
       tunnel.close();
+      finder.close();
       ingest.close();
       youtube.close();
       restream.close();

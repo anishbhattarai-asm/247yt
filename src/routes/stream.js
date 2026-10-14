@@ -1,8 +1,17 @@
 import { Router } from 'express';
+import { cachedPublicIp } from '../core/publicip.js';
 
 export function streamRoutes(ctx) {
   const r = Router();
   const { supervisor, playlist } = ctx;
+
+  // The stable link as the owner would type it (http://<public ip>:<port>).
+  const finderView = () => {
+    const f = ctx.finder.status();
+    if (!f.port) return { ...f, url: null };
+    const host = ctx.getConfig().obs.publicHost || cachedPublicIp();
+    return { ...f, url: host ? `http://${host.includes(':') ? `[${host}]` : host}:${f.port}` : null };
+  };
 
   r.get('/status', async (req, res) => {
     const s = supervisor.status();
@@ -19,6 +28,7 @@ export function streamRoutes(ctx) {
       needsStreamKey: !cfg.youtube.streamKey && !process.env.STREAM_DEST,
       panelUrl: ctx.tunnel.status().url, // only the live one — old URLs stop working
       tunnel: ctx.tunnel.status(),
+      finder: finderView(),
       health: ctx.health.status(),
       normalizer: ctx.normalizer.status(),
       system: await ctx.stats.snapshot(),

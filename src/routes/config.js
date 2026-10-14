@@ -3,7 +3,11 @@ import { Router } from 'express';
 export function configRoutes(ctx) {
   const r = Router();
 
-  const view = () => ({ ...ctx.settings.public(), profileLocked: !ctx.library.isEmpty() });
+  const view = () => ({
+    ...ctx.settings.public(),
+    profileLocked: !ctx.library.isEmpty(),
+    serverTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+  });
 
   r.get('/', (req, res) => res.json(view()));
 
@@ -25,6 +29,7 @@ export function configRoutes(ctx) {
     }
     ctx.supervisor.poke(); // mode / background / key may have made the stream startable
     ctx.ingest.apply(); // OBS input on/off or new port
+    ctx.finder.apply(); // stable link port
     await ctx.youtube.apply(); // a new OAuth client drops the old sign-in
     ctx.logs.push('config', `updated: ${Object.keys(req.body ?? {}).join(', ')}`);
     res.json(view());

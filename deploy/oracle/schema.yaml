@@ -1,0 +1,97 @@
+# The form Oracle Resource Manager shows for this stack (Deploy button).
+title: "Stream Panel"
+description: "A 24/7 YouTube live stream from your own videos, or a lofi image with music, on one Always Free Arm server. Controlled from your phone."
+informationalText: "After Apply finishes, give the server about 10 minutes to install itself. Then open the panel link below and enter the setup code to choose your password."
+schemaVersion: 1.1.0
+version: "20261014"
+locale: "en"
+
+variableGroups:
+  - title: "Server"
+    variables:
+      - compartment_ocid
+      - availability_domain
+      - ssh_public_key
+  - title: "Size (the defaults fit Always Free)"
+    variables:
+      - ocpus
+      - memory_gbs
+      - boot_volume_gbs
+  - title: "Hidden"
+    visible: false
+    variables:
+      - tenancy_ocid
+      - region
+      - repo_url
+      - branch
+
+variables:
+  compartment_ocid:
+    type: oci:identity:compartment:id
+    title: "Compartment"
+    description: "Your root compartment (your account name) is fine."
+    required: true
+  availability_domain:
+    type: oci:identity:availabilitydomain:name
+    title: "Availability domain"
+    description: "If Apply fails with \"Out of host capacity\", run it again with another one, or later."
+    dependsOn:
+      compartmentId: ${compartment_ocid}
+    required: true
+  ssh_public_key:
+    type: oci:core:ssh:publickey
+    title: "SSH public key (optional)"
+    description: "Only needed to log in to the server's command line. Everything else is done in the panel."
+    required: false
+  ocpus:
+    type: integer
+    title: "OCPUs"
+    minimum: 1
+    maximum: 4
+    default: 2
+    required: true
+  memory_gbs:
+    type: integer
+    title: "Memory (GB)"
+    minimum: 6
+    maximum: 24
+    default: 12
+    required: true
+  boot_volume_gbs:
+    type: integer
+    title: "Disk (GB)"
+    description: "Room for your videos. Always Free includes 200 GB in total across all your disks."
+    minimum: 50
+    maximum: 200
+    default: 200
+    required: true
+
+outputs:
+  panel_link:
+    type: link
+    title: "Open the panel"
+    visible: true
+  setup_code:
+    type: copyableString
+    title: "Setup code"
+    visible: true
+  public_ip:
+    type: copyableString
+    title: "Server IP"
+    visible: true
+  ssh:
+    type: string
+    title: "SSH"
+    visible: true
+
+outputGroups:
+  - title: "Your panel"
+    outputs:
+      - panel_link
+      - setup_code
+  - title: "Server"
+    outputs:
+      - public_ip
+      - ssh
+
+primaryOutputButton: panel_link

@@ -32,6 +32,38 @@ most of it waiting. You need: a computer, a phone, a Visa or Mastercard
 
 ## 2. The server
 
+### Easiest: the Deploy button
+
+It creates the server, its network and firewall rules, and installs the
+panel, all from Oracle's website. No SSH, no commands.
+
+[![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/anishbhattarai-asm/247yt/releases/download/oracle-stack/stream-panel-oracle.zip)
+
+1. Click the button and sign in to Oracle. **Create stack** opens with this
+   project filled in: tick **I have reviewed and accept the Oracle Terms of
+   Use** → **Next**.
+2. **Availability domain**: any. **SSH public key**: optional but
+   recommended, it is the only way to fix things from the command line later
+   (a forgotten password, for one). To make one on Windows, in PowerShell:
+   `ssh-keygen -t ed25519`, press Enter three times, then choose the file
+   `C:\Users\<you>\.ssh\id_ed25519.pub`. Leave the sizes as they are (they
+   fit Always Free) → **Next**.
+3. Tick **Run apply** → **Create**. The job takes a few minutes.
+   - **"Out of host capacity"**: normal for free servers, nothing was made.
+     Stack → **Edit** → another availability domain, or simply **Apply**
+     again later.
+4. When the job says **Succeeded**, open the stack's **Application
+   information** tab: **Open the panel** and your **Setup code** are there.
+   The server needs about 10 more minutes to install itself; until then the
+   link says "The panel is starting" and retries by itself.
+5. Enter the setup code and choose the panel password. Your browser's time
+   zone is saved for the weekly reconnect.
+
+That link (`http://<server-ip>:8080`) never changes: bookmark it on your
+phone. Continue at **step 5** (steps 3 and 4 are what the button did).
+
+### By hand
+
 **Compute → Instances → Create instance**
 
 | Setting | Value |
@@ -51,7 +83,7 @@ Pay As You Go upgrade, which usually fixes it.
 
 When it says **Running**, copy its **Public IP address**.
 
-## 3. Connect to it
+## 3. Connect to it (by hand only)
 
 On Windows, open **PowerShell**:
 
@@ -65,7 +97,7 @@ If Windows complains the key is "too open": right-click the key file →
 Properties → Security → Advanced → Disable inheritance → remove everyone except
 yourself.
 
-## 4. Install the panel
+## 4. Install the panel (by hand only)
 
 Still in that SSH window:
 
@@ -82,11 +114,26 @@ The script installs everything, then asks for:
 - your **YouTube stream key** — see step 5 (you can paste it later in the
   panel's settings instead);
 - optional **Discord webhook** and **Healthchecks** URLs — see step 6;
-- your **time zone**, e.g. `Asia/Kathmandu` (for the weekly restart at 4 am).
+- your **time zone**, e.g. `Europe/London` (for the weekly restart at 4 am;
+  the panel can change it later).
+
+Press Enter to skip any question: everything can be set in the panel later.
 
 Nothing needs to be opened in Oracle's firewall for the panel: it is reached
 through a Cloudflare tunnel that connects *outwards*. (Going live from OBS
 needs one port opened, see step 8.)
+
+**A link that never changes** (optional): the Cloudflare link is new after
+every restart (Discord always gets it). For one fixed address instead, run
+`FINDER_PORT=8080 bash deploy/setup.sh` (Enter skips every question) and add
+an Ingress Rule in Oracle (VCN → Security Lists → Add Ingress Rule: source
+`0.0.0.0/0`, **TCP**, port **8080**). Then `http://<server-ip>:8080` always
+forwards to the panel. It shows nothing else; the panel still needs its
+password.
+
+**Choose the password in the browser instead:** `bash deploy/setup.sh
+--unattended` asks nothing and prints a **setup code**; open the panel, enter
+the code and choose the password there.
 
 ## 5. YouTube
 
@@ -170,10 +217,16 @@ being completely dead (power, network, Oracle stopped it).
 
 ## 7. Use it
 
-- The panel's link arrives in Discord (or run
+- **Deploy button:** open `http://<server-ip>:8080` (the stack's **Open the
+  panel**). It always leads to the panel.
+- **By hand:** the panel's link arrives in Discord (or run
   `journalctl -u stream-panel | grep 'panel URL'` on the server). It changes
   when the server restarts — Discord always gets the new one.
-- Sign in, set the stream key if you skipped it, add media, press **Start**.
+- Sign in. The **Getting started** list on the Overview shows what is left
+  (stream key, media, alerts) with a button to each page you need. Then press
+  **Start**.
+- The weekly reconnect runs at a quiet hour in your time zone: Settings →
+  **Weekly reconnect** → **Use my time zone** if it's not right.
 - **Adding media:** paste a **link** (Google Drive "Anyone with the link",
   Dropbox, or any direct download) — the server downloads it itself, much faster
   than uploading from home. Uploading from your computer works too.
@@ -263,8 +316,11 @@ Check each platform's rules on 24/7 pre-recorded streams before leaving it on.
 
 | Problem | Do this |
 |-|-|
-| Can't open the panel | Get the newest link from Discord / `journalctl -u stream-panel \| grep 'panel URL'` |
-| Forgot the password | On the server: `cd stream-panel && npm run set-password` |
+| Can't open the panel | Deploy button: use the stack's **Open the panel** link. By hand: get the newest link from Discord / `journalctl -u stream-panel \| grep 'panel URL'` |
+| The Deploy button says the stack file can't be downloaded | The repository must be public, and its **Actions** must have built the `oracle-stack` release. |
+| "The panel is starting" for more than 20 minutes | The install stopped. With an SSH key: `tail -50 /var/log/stream-panel-install.log` on the server. Without one: stack → **Destroy**, then **Apply** again (nothing of yours is on it yet). |
+| "Wrong setup code" | Copy it again from the stack's **Application information**. After 5 wrong tries wait a minute. It stops working once a password is set: then sign in instead. |
+| Forgot the password | On the server: `cd stream-panel && npm run set-password` (needs SSH, so add a key when deploying) |
 | Stream won't start | Panel status shows why (no stream key, nothing ready to play, …) |
 | See what's happening | `journalctl -u stream-panel -f` |
 | Restart everything | `sudo systemctl restart stream-panel` (the stream resumes where it was) |

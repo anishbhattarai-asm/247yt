@@ -1,0 +1,22 @@
+#cloud-config
+# Runs once, at the server's first boot: installs Stream Panel for the
+# "ubuntu" user, with no questions. Progress: /var/log/stream-panel-install.log
+# (a Terraform template: main.tf fills in repo_url, branch, setup_code and
+# finder_port).
+write_files:
+  - path: /usr/local/sbin/stream-panel-install
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      exec >>/var/log/stream-panel-install.log 2>&1
+      echo "== $(date -u) installing Stream Panel"
+      apt-get -o DPkg::Lock::Timeout=600 install -y -qq git
+      if [ ! -d /home/ubuntu/stream-panel ]; then
+        sudo -u ubuntu -H git clone --depth 1 --branch '${branch}' '${repo_url}' /home/ubuntu/stream-panel
+      fi
+      cd /home/ubuntu/stream-panel
+      sudo -u ubuntu -H env SETUP_CODE='${setup_code}' FINDER_PORT='${finder_port}' bash deploy/setup.sh --unattended
+      echo "== $(date -u) done: open http://<this server's public IP>:${finder_port}"
+runcmd:
+  - [/usr/local/sbin/stream-panel-install]

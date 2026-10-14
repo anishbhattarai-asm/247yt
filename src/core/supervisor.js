@@ -32,6 +32,24 @@ const IDLE_RETRY = 15; // seconds between tries while there's nothing to play
 const HEALTHY_AFTER = 60; // a session this long resets the failure count
 const HARD_RESTART_DAYS = 20; // FFmpeg's FLV timestamps wrap at ~24.8 days
 
+// Minutes past midnight on the wall clock of `timeZone` (empty = the server's).
+const zoneFormats = new Map();
+export function clockMinutes(now, timeZone = '') {
+  if (timeZone) {
+    try {
+      let f = zoneFormats.get(timeZone);
+      if (!f) {
+        f = new Intl.DateTimeFormat('en-US', { timeZone, hour: 'numeric', minute: 'numeric', hourCycle: 'h23' });
+        zoneFormats.set(timeZone, f);
+      }
+      const p = Object.fromEntries(f.formatToParts(now).map((x) => [x.type, x.value]));
+      return Number(p.hour) * 60 + Number(p.minute);
+    } catch {} // unknown zone: fall back to the server's clock
+  }
+  const d = new Date(now);
+  return d.getHours() * 60 + d.getMinutes();
+}
+
 export class Supervisor extends EventEmitter {
   // state: JsonStore (data/state.json) — desired + resume survive reboots
   // preflight(): a reason we can't stream yet (e.g. no stream key), or null
@@ -310,11 +328,11 @@ export class Supervisor extends EventEmitter {
     const startedAt = this.pipeline.status().sessionStartedAt;
     if (!startedAt) return;
     const days = (now - startedAt) / 86_400_000;
-    const { everyDays, at } = this.getConfig().restart;
+    const { everyDays, at, timeZone } = this.getConfig().restart;
     const [h, m] = at.split(':').map(Number);
-    const d = new Date(now);
-    const minutes = d.getHours() * 60 + d.getMinutes() - (h * 60 + m);
-    const inWindow = minutes >= 0 && minutes < 30;
+    // Minutes since "at", wrapping past midnight (a 23:50 window runs to 00:20).
+    const minutes = (clockMinutes(now, timeZone) - (h * 60 + m) + 1440) % 1440;
+    const inWindow = minutes < 30;
     if ((days >= everyDays - 0.5 && inWindow) || days >= HARD_RESTART_DAYS) {
       this.log(`planned restart (session age ${days.toFixed(1)} days)`);
       this.pipeline.plannedRestart();

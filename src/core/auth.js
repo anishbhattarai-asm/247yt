@@ -6,7 +6,7 @@
 // - Login rate limit per client IP: after 5 failures, locked out for 1 min,
 //   doubling up to 15 min.
 
-import { createHmac, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
 const scryptP = promisify(scrypt);
@@ -32,6 +32,17 @@ export async function verifyPassword(password, stored) {
   const expected = Buffer.from(hash, 'base64url');
   const key = await scryptP(password, Buffer.from(salt, 'base64url'), expected.length, { N: Number(n), r: Number(r), p: Number(p) });
   return timingSafeEqual(key, expected);
+}
+
+// First-run setup code. Typed by a person, so case, spaces and dashes don't
+// matter, and look-alikes count as the same (O/0, I/L/1).
+const normalizeCode = (s) => String(s).toUpperCase().replace(/[^A-Z0-9]/g, '').replace(/O/g, '0').replace(/[IL]/g, '1');
+const digest = (s) => createHash('sha256').update(s).digest();
+
+export function setupCodeMatches(given, stored) {
+  if (typeof given !== 'string' || typeof stored !== 'string' || !stored) return false;
+  const a = normalizeCode(given);
+  return a.length > 0 && timingSafeEqual(digest(a), digest(normalizeCode(stored)));
 }
 
 export function issueToken(secret, hours) {

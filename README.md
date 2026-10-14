@@ -23,9 +23,11 @@ playlist carries on when you stop.
   health turning Poor, the panel's new link, OBS going live.
 - **Optional YouTube connection:** sets up the broadcast for you and shows
   YouTube's own stream health.
+- **Set up from the browser:** one button creates the Oracle server and
+  installs everything; a checklist in the panel walks you through the rest.
 - **Private by default:** one password, reached through a Cloudflare link;
-  nothing is open to the internet except OBS's port (and only if you turn OBS
-  input on).
+  the server answers nothing else except a link that forwards to the panel,
+  and OBS's port (only if you turn OBS input on).
 
 <p align="center"><img src="docs/images/overview-phone.png" width="300" alt="The panel on a phone"></p>
 
@@ -45,6 +47,29 @@ Any Ubuntu 22.04/24.04 server with systemd works too (x86 or ARM).
 
 ## Install
 
+### Easiest: one button, no commands
+
+[![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/anishbhattarai-asm/247yt/releases/download/oracle-stack/stream-panel-oracle.zip)
+
+1. Make an Oracle Cloud account (free; a card is asked for at sign-up):
+   [step 1 of the guide](deploy/SETUP-GUIDE.md#1-oracle-cloud-account).
+2. Click **Deploy to Oracle Cloud** and sign in. Oracle opens **Create
+   stack** with this project filled in: accept the terms → **Next** → pick an
+   availability domain (an SSH key is optional) → **Next** → tick **Run
+   apply** → **Create**.
+3. When the job says **Succeeded**, give the server about 10 minutes to
+   install itself. The stack's **Application information** tab has **Open the
+   panel** and your **Setup code**.
+4. Open the panel, enter the setup code, choose your password.
+
+<img src="docs/images/setup.png" width="360" alt="First visit: setup code and password">
+
+That link (`http://<server-ip>:8080`) never changes: bookmark it on your
+phone. "Out of host capacity" during the job is normal for free servers:
+run **Apply** again, or pick another availability domain.
+
+### By hand (any Ubuntu server)
+
 The full walk-through, with every click, is in
 **[deploy/SETUP-GUIDE.md](deploy/SETUP-GUIDE.md)**. In short:
 
@@ -52,13 +77,14 @@ The full walk-through, with every click, is in
    200 GB boot volume) and connect with SSH.
 2. Get the code onto it and run the installer:
    ```bash
-   git clone <this repository> stream-panel
+   git clone https://github.com/anishbhattarai-asm/247yt stream-panel
    cd stream-panel
    bash deploy/setup.sh
    ```
    It installs Node.js, FFmpeg and cloudflared, asks for a panel password,
    your stream key, Discord and Healthchecks URLs (Enter skips any), and your
-   time zone, then starts the service.
+   time zone, then starts the service. With `--unattended` it asks nothing
+   and prints a setup code instead (you choose the password in the browser).
 3. The panel's link arrives in Discord (or run
    `journalctl -u stream-panel | grep 'panel URL'`). Open it, sign in, add
    media, press **Start**.
@@ -68,10 +94,17 @@ Windows: [deploy/WSL-REHEARSAL.md](deploy/WSL-REHEARSAL.md).
 
 ## Configure
 
-<img src="docs/images/login.png" width="360" alt="Sign in">
+The **Getting started** list on the Overview shows what's left, with a button
+to each page you need (YouTube Studio, Discord's webhook help, Healthchecks)
+and to the right field in Settings. It goes away once everything is done, or
+when you press **Hide**.
+
+![Getting started](docs/images/getting-started.png)
 
 Everything below is in the panel's **Settings** tab. Secrets you paste are
 never shown again (only "Set" / "Not set"), and **Remove** deletes them.
+Each card links to the outside page you need (YouTube Studio, the Google
+Cloud steps, your Twitch or Kick key page, OBS's download).
 
 ![Settings](docs/images/settings.png)
 
@@ -158,7 +191,8 @@ server. **Disconnect** (or myaccount.google.com/permissions) removes access.
 <img src="docs/images/obs-input.png" width="520" alt="OBS live input card">
 
 1. Oracle console → your VCN → **Security Lists** → **Add Ingress Rule**:
-   source `0.0.0.0/0`, protocol **UDP**, port **9710**.
+   source `0.0.0.0/0`, protocol **UDP**, port **9710**. (Already done if you
+   used the Deploy button.)
 2. Panel → **OBS live input** → tick **Accept a live stream from OBS** →
    **Save** → copy the **Server for OBS** address. It contains the password;
    **New password** (under Advanced) locks the old address out.
@@ -194,6 +228,14 @@ allowance is 10 TB a month). Extra platforms follow the main stream: when the
 panel's stream is stopped, they stop too. OBS takeover reaches every platform.
 Check each platform's rules on 24/7 pre-recorded streams before leaving it on.
 
+### 7. Weekly reconnect time
+
+<img src="docs/images/weekly-reconnect.png" width="520" alt="Weekly reconnect card">
+
+Every few days the connection to YouTube is renewed at a quiet hour (viewers
+don't notice). Your browser's time zone is saved when you choose the
+password; **Use my time zone** sets it again, or pick one from the list.
+
 ## Keep your keys private
 
 - All secrets (stream keys, Discord and Healthchecks URLs, the OBS password,
@@ -207,13 +249,16 @@ Check each platform's rules on 24/7 pre-recorded streams before leaving it on.
   a Discord webhook leaks: delete it in Discord and make a new one. If the OBS
   address leaks: **New password**.
 - The panel itself has one password (`npm run set-password` on the server
-  resets it) and locks out repeated wrong guesses.
+  resets it) and locks out repeated wrong guesses. The one-time **setup
+  code** only works until a password is chosen, under the same lockout.
+- The stable link (`:8080`) only forwards to the panel's current Cloudflare
+  link; it shows no panel pages and needs no password of its own.
 
 ## Day to day
 
 | Task | How |
 |-|-|
-| Find the panel link | Discord, or `journalctl -u stream-panel \| grep 'panel URL'` |
+| Find the panel link | `http://<server-ip>:8080` (Deploy button), Discord, or `journalctl -u stream-panel \| grep 'panel URL'` |
 | See what's happening | Panel → **Logs**, or `journalctl -u stream-panel -f` |
 | Restart everything | `sudo systemctl restart stream-panel` (resumes where it was) |
 | Update to a new version | `bash deploy/update.sh` |

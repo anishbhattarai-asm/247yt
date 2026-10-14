@@ -2,6 +2,8 @@
 //
 //   npm run set-password                 prompts (hidden input, asked twice)
 //   node cli.js set-password --stdin     reads one line from stdin (scripts)
+//   node cli.js setup-code [--stdin]     one-time code for choosing the password
+//                                        in the browser (made up, or from stdin)
 //   node cli.js set <path> <value>       e.g. set mode lofi, set restart.at 04:30
 //   node cli.js set <path> --stdin       value from stdin — use for secrets so
 //                                        they never appear in shell history:
@@ -17,7 +19,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { hashPassword, MIN_PASSWORD } from './src/core/auth.js';
-import { SECRETS, Settings, setPath } from './src/core/settings.js';
+import { newSetupCode, SECRETS, Settings, setPath } from './src/core/settings.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.resolve(ROOT, process.env.DATA_DIR || 'data');
@@ -70,6 +72,18 @@ async function setPassword(args) {
   console.log('Password set. Everyone signed in before has been signed out.');
 }
 
+async function setupCode(args) {
+  const settings = await new Settings(dataDir).load();
+  if (settings.get().auth.passwordHash) {
+    console.log('A panel password is already set, so no setup code is needed (reset it with: npm run set-password).');
+    return;
+  }
+  const code = args.includes('--stdin') ? (await readStdinLine()).trim() : newSetupCode();
+  if (!/^[A-Za-z0-9-]{6,64}$/.test(code)) throw new Error('A setup code is 6-64 letters, digits or dashes');
+  await settings.setSetupCode(code);
+  console.log(`Setup code: ${code}\nOpen the panel and enter it to choose the password.`);
+}
+
 async function set([key, value]) {
   if (!key || value === undefined) throw new Error('usage: node cli.js set <path> <value|--stdin>');
   let raw = value === '--stdin' ? await readStdinLine() : value;
@@ -95,9 +109,9 @@ async function hasMedia() {
 }
 
 const [command, ...args] = process.argv.slice(2);
-const commands = { 'set-password': setPassword, set };
+const commands = { 'set-password': setPassword, 'setup-code': setupCode, set };
 if (!commands[command]) {
-  console.log('usage:\n  node cli.js set-password [--stdin]\n  node cli.js set <path> <value|--stdin>');
+  console.log('usage:\n  node cli.js set-password [--stdin]\n  node cli.js setup-code [--stdin]\n  node cli.js set <path> <value|--stdin>');
   process.exit(command ? 1 : 0);
 }
 commands[command](args).catch((err) => {

@@ -89,6 +89,28 @@ u { text-underline-offset: 3px; }
 .brand-lg .i { width: 26px; height: 26px; }
 .form-error { margin: 0; color: var(--accent); min-height: 1.5em; font-size: 14px; }
 #login-hint:empty { display: none; }
+.login-card .form-error:empty { display: none; } /* no blank line above the button */
+.setup-intro { display: grid; gap: 6px; text-align: center; }
+.setup-intro h1 { font-size: 22px; }
+.setup-intro p { margin: 0; }
+.login-card small code { overflow-wrap: anywhere; }
+
+/* getting started */
+.guide-head { margin-bottom: 14px; }
+.card .guide-head h2 { margin-bottom: 0; }
+.guide-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.step { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; align-items: start; }
+.step-mark {
+  width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 13px; font-weight: 700; background: var(--surface-2); border: 1px solid var(--border);
+}
+.step.done .step-mark { color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, transparent); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+.step.done .step-mark .i { width: 15px; height: 15px; }
+.step-body { display: grid; gap: 6px; padding-top: 3px; min-width: 0; }
+.step-title { font-weight: 600; }
+.step-title .tag { margin-left: 8px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.step.done .step-title { color: var(--muted); }
+.step-body p { margin: 0; }
 
 /* top bar */
 .topbar {
@@ -240,6 +262,7 @@ input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent);
 .form-card { display: grid; gap: 14px; }
 .form-card p, .form-card dl { margin: 0; } /* the grid gap spaces them; default margins doubled it */
 .form-card h2 { margin-bottom: 0; }
+#obs-details { display: grid; gap: 14px; }
 .field { display: grid; gap: 6px; }
 .field > span { font-weight: 600; font-size: 14px; display: flex; gap: 8px; align-items: center; }
 .state { font-style: normal; font-size: 12px; font-weight: 700; padding: 0 8px; border-radius: 99px; background: var(--surface-2); color: var(--muted); }

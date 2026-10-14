@@ -1,0 +1,35 @@
+# Packs deploy/oracle into the zip that the README's "Deploy to Oracle Cloud"
+# button opens, as the asset of the "oracle-stack" release. Runs whenever the
+# stack changes (or by hand from the Actions tab).
+name: Oracle stack
+
+on:
+  push:
+    branches: [main]
+    paths: ["deploy/oracle/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Zip the stack (files at the top of the zip, as Resource Manager wants)
+        run: cd deploy/oracle && zip -r "$GITHUB_WORKSPACE/stream-panel-oracle.zip" .
+
+      - name: Publish it as the oracle-stack release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view oracle-stack >/dev/null 2>&1; then
+            gh release upload oracle-stack stream-panel-oracle.zip --clobber
+          else
+            gh release create oracle-stack stream-panel-oracle.zip \
+              --title "Oracle Cloud stack" \
+              --notes "Used by the Deploy to Oracle Cloud button in the README. Rebuilt automatically when deploy/oracle changes." \
+              --latest=false
+          fi

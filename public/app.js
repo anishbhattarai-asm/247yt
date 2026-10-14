@@ -99,6 +99,17 @@ function bytes(n) {
   const i = Math.min(u.length - 1, Math.floor(Math.log(n) / Math.log(1024)));
   return `${(n / 1024 ** i).toFixed(i >= 3 ? 1 : 0)} ${u[i]}`;
 }
+// A button that opens another site in a new tab.
+function extLink(label, href) {
+  return h('a', { class: 'btn btn-small', href, target: '_blank', rel: 'noopener' }, label, icon('external', 'i i-sm'));
+}
+const GUIDE_URL = 'https://github.com/anishbhattarai-asm/247yt';
+const LINKS = {
+  studio: 'https://studio.youtube.com/channel/UC/livestreaming/manage',
+  discordHelp: 'https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks',
+  healthchecks: 'https://healthchecks.io/',
+};
+
 const getPath = (obj, key) => key.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
 function setPath(obj, key, value) {
   const parts = key.split('.');
@@ -137,11 +148,14 @@ async function act(fn, success) {
 
 // auth
 
-function showLogin(passwordSet = true) {
+function showLogin(passwordSet = true, setupCodeRequired = false) {
+  const setup = !passwordSet && setupCodeRequired;
   $('#app').hidden = true;
   $('#login').hidden = false;
-  $('#login-hint').textContent = passwordSet ? '' : 'No password yet. On the server run: npm run set-password';
-  $('#login-password').focus();
+  $('#login-form').hidden = setup;
+  $('#setup-form').hidden = !setup;
+  $('#login-hint').textContent = passwordSet || setup ? '' : 'No password yet. On the server run: npm run set-password';
+  (setup ? $('#setup-code') : $('#login-password')).focus();
 }
 
 async function showApp() {
@@ -161,6 +175,35 @@ $('#login-form').addEventListener('submit', async (e) => {
     showApp();
   } catch (e2) {
     err.textContent = e2.message;
+  }
+});
+
+// First visit: setup code + new password. The browser's time zone goes along
+// so the weekly reconnect happens at night where the owner lives.
+$('#setup-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = $('#setup-error');
+  err.textContent = '';
+  const password = $('#setup-password').value;
+  if (password !== $('#setup-password2').value) {
+    err.textContent = 'The two passwords are not the same.';
+    return;
+  }
+  let timeZone = '';
+  try {
+    timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';
+  } catch {}
+  try {
+    await api('POST', '/api/auth/setup', { code: $('#setup-code').value, password, timeZone });
+    $('#setup-form').reset();
+    await showApp();
+    toast('Password set. You are signed in.');
+  } catch (e2) {
+    err.textContent = e2.message;
+    if (e2.status === 409) {
+      const s = await api('GET', '/api/auth/session').catch(() => null);
+      if (s?.passwordSet) showLogin(true);
+    }
   }
 });
 
@@ -288,6 +331,10 @@ function renderStatus() {
   // Access & alerts
   $('#acc-url').textContent = s.panelUrl ?? (s.tunnel.enabled ? (s.tunnel.error ?? 'starting tunnel…') : 'tunnel off (local only)');
   $('#copy-url').hidden = !s.panelUrl;
+  const f = s.finder;
+  $('#acc-finder-row').hidden = !f?.port;
+  if (f?.port) $('#acc-finder').textContent = f.url ?? (f.error ? `Error: ${f.error}` : 'finding this server\'s address…');
+  $('#copy-finder').hidden = !f?.url;
   const d = s.discord;
   setStatusText($('#acc-discord'), !d.configured ? ['Not set up', 'muted'] : d.lastError && d.failed ? [`Error: ${d.lastError}`, 'bad'] : [`On · ${d.sent} sent`, 'ok']);
   const hc = s.health.healthcheck;
@@ -299,9 +346,98 @@ function renderStatus() {
   setStatusText($('#st-also'), rsOverview(s.restream ?? []));
   renderRestream(s.restream ?? []);
 
+  renderGuide(s);
   renderNowTick();
   if (state.tab === 'library') markOnAir();
 }
+
+// Getting started: what's left to do, each with a button to the right place.
+// Hidden for good once everything is done or "Hide" is pressed (per browser).
+const GUIDE_HIDDEN = 'stream-panel.guide-hidden';
+const remember = (key, value) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch {}
+};
+const recall = (key) => {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+function goToField(name) {
+  selectTab('settings');
+  const el = $(`#tab-settings [name="${name}"]`);
+  if (!el) return;
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  el.focus({ preventScroll: true });
+}
+const goBtn = (label, name) => h('button', { type: 'button', class: 'btn btn-small btn-ghost', onclick: () => goToField(name) }, label);
+
+function guideSteps(s) {
+  return [
+    {
+      done: !s.needsStreamKey,
+      title: 'Add your YouTube stream key',
+      text: 'In YouTube Studio: Create, Go live, Manage, Schedule stream (Streaming software). Turn Auto-stop off and copy its key. Or connect your channel under Settings and the panel makes the broadcast for you.',
+      actions: [extLink('Open YouTube Studio', LINKS.studio), goBtn('Paste it in Settings', 'youtube.streamKey')],
+    },
+    {
+      done: !s.playable,
+      title: 'Add videos, or a background and music',
+      text: 'Paste a Google Drive or Dropbox link (the server downloads it itself) or drop files. Each file is converted once.',
+      actions: [h('button', { type: 'button', class: 'btn btn-small btn-ghost', onclick: () => selectTab('library') }, 'Open Library')],
+    },
+    {
+      done: s.discord.configured,
+      optional: true,
+      title: 'Get alerts in Discord',
+      text: 'Stream started, dropped or back, YouTube health, and the panel\'s new link whenever it changes.',
+      actions: [extLink('How to make a webhook', LINKS.discordHelp), goBtn('Paste it in Settings', 'notifications.discordWebhookUrl')],
+    },
+    {
+      done: s.health.healthcheck.configured,
+      optional: true,
+      title: 'Hear about it if the whole server goes down',
+      text: 'A free Healthchecks.io check (period 5 min, grace 10 min) with its Discord integration.',
+      actions: [extLink('Open Healthchecks.io', LINKS.healthchecks), goBtn('Paste it in Settings', 'healthcheck.url')],
+    },
+    {
+      done: s.desired,
+      title: 'Press Start',
+      text: 'The stream runs on the server: you can close this page, or your computer.',
+      actions: [],
+    },
+  ];
+}
+
+let guideKey = '';
+function renderGuide(s) {
+  const card = $('#guide');
+  const steps = guideSteps(s);
+  if (steps.every((x) => x.done)) remember(GUIDE_HIDDEN, '1');
+  if (recall(GUIDE_HIDDEN) === '1') {
+    card.hidden = true;
+    return;
+  }
+  card.hidden = false;
+  const key = steps.map((x) => (x.done ? 1 : 0)).join('');
+  if (key === guideKey) return;
+  guideKey = key;
+  $('#guide-steps').replaceChildren(...steps.map((st, i) => h('li', { class: `step${st.done ? ' done' : ''}` },
+    h('span', { class: 'step-mark', 'aria-label': st.done ? 'Done' : `Step ${i + 1}` }, st.done ? icon('check') : String(i + 1)),
+    h('div', { class: 'step-body' },
+      h('div', { class: 'step-title' }, st.title, st.optional ? h('span', { class: 'tag' }, 'optional') : null),
+      st.done ? null : h('p', { class: 'muted small' }, st.text),
+      st.done || !st.actions.length ? null : h('div', { class: 'btn-row' }, ...st.actions)))));
+}
+
+$('#guide-hide').addEventListener('click', () => {
+  remember(GUIDE_HIDDEN, '1');
+  $('#guide').hidden = true;
+});
 
 function obsStatus(o) {
   if (!o?.enabled) return ['Off', 'muted'];
@@ -360,6 +496,10 @@ $('#btn-restart').addEventListener('click', async () => {
 $('#copy-url').addEventListener('click', async () => {
   const url = state.status?.panelUrl;
   if (url) await act(() => navigator.clipboard.writeText(url), 'Link copied');
+});
+$('#copy-finder').addEventListener('click', async () => {
+  const url = state.status?.finder?.url;
+  if (url) await act(() => navigator.clipboard.writeText(url), 'Stable link copied');
 });
 
 // library
@@ -656,9 +796,23 @@ async function loadConfig() {
   if (state.tab === 'settings') renderConfig();
 }
 
+// Every IANA zone the browser knows, plus the saved one if it isn't listed.
+function fillTimeZones(c) {
+  const sel = $('#tz-select');
+  let zones = [];
+  try {
+    zones = Intl.supportedValuesOf('timeZone');
+  } catch {}
+  const saved = c.restart.timeZone;
+  if (saved && !zones.includes(saved)) zones = [saved, ...zones];
+  sel.replaceChildren(h('option', { value: '' }, `The server's (${c.serverTimeZone ?? 'unknown'})`),
+    ...zones.map((z) => h('option', { value: z }, z.replaceAll('_', ' '))));
+}
+
 function renderConfig() {
   const c = state.config;
   if (!c) return;
+  fillTimeZones(c);
   for (const el of $$('#tab-settings [name]')) {
     const key = el.name;
     const value = getPath(c, key);
@@ -724,6 +878,15 @@ for (const seg of $$('[data-radio]')) {
     });
   }
 }
+$('#btn-my-tz').addEventListener('click', () => {
+  let tz = '';
+  try {
+    tz = Intl.DateTimeFormat().resolvedOptions().timeZone ?? '';
+  } catch {}
+  if (!tz) return toast('This browser does not say its time zone. Pick it from the list.', 'bad');
+  saveConfig({ restart: { timeZone: tz } }, `Time zone set to ${tz.replaceAll('_', ' ')}`);
+});
+
 $('[name="lofi.backgroundId"]').addEventListener('change', (e) => {
   if (e.target.value) saveConfig({ lofi: { backgroundId: e.target.value } }, 'Background set');
 });
@@ -811,7 +974,15 @@ function ytView(y) {
         h('input', { name: 'youtube.clientId', autocomplete: 'off', placeholder: '….apps.googleusercontent.com', value: state.config?.youtube?.clientId ?? '' })),
       h('label', { class: 'field' }, h('span', {}, 'Client secret'),
         h('input', { name: 'youtube.clientSecret', type: 'password', autocomplete: 'off', placeholder: 'GOCSPX-…' })),
-      h('small', { class: 'muted' }, 'From your own Google Cloud project (free, about 10 minutes): see step 5b of the setup guide.'),
+      h('div', { class: 'field' },
+        h('span', {}, 'Make your own Google client (free, about 10 minutes)'),
+        h('div', { class: 'btn-row' },
+          extLink('1. Turn on the YouTube API', 'https://console.cloud.google.com/apis/library/youtube.googleapis.com'),
+          extLink('2. Set up Google Auth', 'https://console.cloud.google.com/auth/overview'),
+          extLink('3. Publish the app', 'https://console.cloud.google.com/auth/audience'),
+          extLink('4. Create the client', 'https://console.cloud.google.com/auth/clients/create')),
+        h('small', { class: 'muted' }, 'Sign in with the channel\'s Google account and create or pick a project at the top of each page. Client type: TVs and Limited Input devices. Every click is in ',
+          h('a', { href: `${GUIDE_URL}#2-connect-youtube-optional`, target: '_blank', rel: 'noopener' }, 'the guide'), '.')),
       err,
       h('div', { class: 'form-actions' }, h('button', { class: 'btn btn-primary', type: 'submit' }, 'Save')),
     ];
@@ -982,10 +1153,23 @@ async function removeRs(d) {
   }, `${d.name} removed`);
 }
 
+const RS_KEY_PAGE = {
+  twitch: ['Get your Twitch key', 'https://dashboard.twitch.tv/settings/stream'],
+  kick: ['Get your Kick key', 'https://dashboard.kick.com/channel/stream'],
+  facebook: ['Open Facebook Live Producer', 'https://www.facebook.com/live/producer'],
+};
+
 function rsPlatformChanged() {
   const p = $('#rs-platform').value;
   $('#rs-url').value = RS_URL[p];
   $('#rs-help').textContent = RS_HELP[p];
+  const link = $('#rs-key-link');
+  const page = RS_KEY_PAGE[p];
+  link.parentElement.hidden = !page; // no empty row for "Other"
+  if (page) {
+    link.href = page[1];
+    link.replaceChildren(page[0], icon('external', 'i i-sm'));
+  }
 }
 $('#rs-platform').addEventListener('change', rsPlatformChanged);
 rsPlatformChanged();
@@ -1079,7 +1263,7 @@ $('#log-pause').addEventListener('click', () => {
   const hash = location.hash.slice(1);
   try {
     const s = await api('GET', '/api/auth/session');
-    if (!s.authenticated) return showLogin(s.passwordSet);
+    if (!s.authenticated) return showLogin(s.passwordSet, s.setupCodeRequired);
     await showApp();
     if (['overview', 'library', 'settings', 'logs'].includes(hash)) selectTab(hash);
   } catch {

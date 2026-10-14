@@ -57,6 +57,22 @@
       <button class="btn btn-primary btn-block" type="submit">Sign in</button>
       <p id="login-hint" class="muted small"></p>
     </form>
+    <form id="setup-form" class="login-card" hidden>
+      <div class="brand brand-lg"><svg class="i"><use href="#i-signal"/></svg><span>Stream Panel</span></div>
+      <div class="setup-intro">
+        <h1>Welcome</h1>
+        <p class="muted small">Enter the setup code and choose the password for this panel. You'll sign in with it from now on.</p>
+      </div>
+      <label class="field">
+        <span>Setup code</span>
+        <input id="setup-code" class="mono" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXXX-XXXXX" required>
+        <small class="muted">Deployed with the Oracle button: it is on your stack's page under <b>Application information</b>. Installed by hand: run <code>journalctl -u stream-panel | grep 'setup code'</code> on the server.</small>
+      </label>
+      <label class="field"><span>New password</span><input id="setup-password" type="password" autocomplete="new-password" minlength="8" required></label>
+      <label class="field"><span>Same password again</span><input id="setup-password2" type="password" autocomplete="new-password" minlength="8" required></label>
+      <p id="setup-error" class="form-error" role="alert"></p>
+      <button class="btn btn-primary btn-block" type="submit">Set password and open the panel</button>
+    </form>
   </main>
 
   <!-- Panel -->
@@ -76,6 +92,14 @@
     <!-- Overview -->
     <section id="tab-overview" class="tab" role="tabpanel">
       <div id="banner" class="banner" hidden></div>
+
+      <article id="guide" class="card guide" hidden>
+        <div class="split guide-head">
+          <h2><svg class="i"><use href="#i-check"/></svg>Getting started</h2>
+          <button type="button" id="guide-hide" class="link-btn">Hide</button>
+        </div>
+        <ol id="guide-steps" class="guide-steps"></ol>
+      </article>
 
       <article class="card now">
         <div class="now-head">
@@ -125,6 +149,7 @@
           <h2><svg class="i"><use href="#i-globe"/></svg>Access &amp; alerts</h2>
           <dl class="stats">
             <div class="span2"><dt>Panel link</dt><dd class="url-row"><span id="acc-url" class="mono small">—</span><button id="copy-url" class="icon-btn small" title="Copy link" aria-label="Copy link"><svg class="i"><use href="#i-copy"/></svg></button></dd></div>
+            <div class="span2" id="acc-finder-row" hidden><dt>Stable link (always leads here)</dt><dd class="url-row"><span id="acc-finder" class="mono small">—</span><button id="copy-finder" class="icon-btn small" title="Copy link" aria-label="Copy the stable link"><svg class="i"><use href="#i-copy"/></svg></button></dd></div>
             <div><dt>Discord</dt><dd id="acc-discord">—</dd></div>
             <div><dt>Heartbeat</dt><dd id="acc-health">—</dd></div>
             <div><dt>OBS input</dt><dd id="acc-obs">—</dd></div>
@@ -175,6 +200,7 @@
           <input type="password" name="youtube.streamKey" autocomplete="off" placeholder="Paste to set or replace">
           <small class="muted">From your <b>scheduled</b> stream in YouTube Studio, with Auto-stop OFF. Never shown again after saving.</small>
         </label>
+        <div class="btn-row"><a class="btn btn-small" href="https://studio.youtube.com/channel/UC/livestreaming/manage" target="_blank" rel="noopener">Open YouTube Studio<svg class="i i-sm"><use href="#i-external"/></svg></a></div>
         <details class="advanced">
           <summary>Advanced</summary>
           <label class="field"><span>RTMP server</span><input name="youtube.rtmpUrl" autocomplete="off"></label>
@@ -225,6 +251,7 @@
             <span>OBS must send</span>
             <ul id="obs-required" class="checklist small"></ul>
           </div>
+          <div class="btn-row"><a class="btn btn-small" href="https://obsproject.com/download" target="_blank" rel="noopener">Get OBS Studio<svg class="i i-sm"><use href="#i-external"/></svg></a></div>
           <details class="advanced">
             <summary>Advanced</summary>
             <div class="row">
@@ -249,6 +276,7 @@
         </div>
         <label class="field"><span>Server URL</span><input id="rs-url" autocomplete="off" placeholder="rtmp:// or rtmps://"></label>
         <small class="muted" id="rs-help"></small>
+        <div class="btn-row" hidden><a id="rs-key-link" class="btn btn-small" target="_blank" rel="noopener"></a></div>
         <div class="form-actions"><button type="button" class="btn btn-primary" id="rs-add"><svg class="i"><use href="#i-share"/></svg>Add platform</button></div>
       </form>
 
@@ -257,7 +285,9 @@
         <label class="field">
           <span>Discord webhook <em class="state" data-state="notifications.discordWebhookUrl"></em><button type="button" class="link-btn" data-clear="notifications.discordWebhookUrl" hidden>Remove</button></span>
           <input type="password" name="notifications.discordWebhookUrl" autocomplete="off" placeholder="https://discord.com/api/webhooks/…">
+          <small class="muted">In Discord: channel settings, Integrations, Webhooks, New Webhook, Copy Webhook URL.</small>
         </label>
+        <div class="btn-row"><a class="btn btn-small" href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks" target="_blank" rel="noopener">How to make a webhook<svg class="i i-sm"><use href="#i-external"/></svg></a></div>
         <fieldset class="checks">
           <legend class="small muted">Send an alert when the stream…</legend>
           <label><input type="checkbox" name="notifications.events.start"> starts</label>
@@ -276,8 +306,9 @@
         <label class="field">
           <span>Healthchecks.io ping URL <em class="state" data-state="healthcheck.url"></em><button type="button" class="link-btn" data-clear="healthcheck.url" hidden>Remove</button></span>
           <input type="password" name="healthcheck.url" autocomplete="off" placeholder="https://hc-ping.com/…">
-          <small class="muted">Alerts you if the whole server dies — the one thing it can't report itself.</small>
+          <small class="muted">Alerts you if the whole server dies, the one thing it can't report itself. Add a check (period 5 min, grace 10 min) and its Discord integration.</small>
         </label>
+        <div class="btn-row"><a class="btn btn-small" href="https://healthchecks.io/" target="_blank" rel="noopener">Open Healthchecks.io<svg class="i i-sm"><use href="#i-external"/></svg></a></div>
         <div class="form-actions">
           <button class="btn" type="button" id="btn-test-alert"><svg class="i"><use href="#i-bell"/></svg>Send test</button>
           <button class="btn btn-primary" type="submit">Save</button>
@@ -300,9 +331,13 @@
         <p class="muted small">The connection to YouTube is renewed every few days at a quiet hour (FFmpeg's timestamps run out after ~24 days). Viewers don't notice.</p>
         <div class="row">
           <label class="field"><span>Every (days)</span><input type="number" name="restart.everyDays" min="1" max="20" required></label>
-          <label class="field"><span>At (server time)</span><input type="time" name="restart.at" required></label>
+          <label class="field"><span>At</span><input type="time" name="restart.at" required></label>
         </div>
-        <div class="form-actions"><button class="btn btn-primary" type="submit">Save</button></div>
+        <label class="field"><span>Time zone</span><select name="restart.timeZone" id="tz-select"></select></label>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" id="btn-my-tz"><svg class="i"><use href="#i-globe"/></svg>Use my time zone</button>
+          <button class="btn btn-primary" type="submit">Save</button>
+        </div>
       </form>
 
       <form class="card form-card" data-form="profile">

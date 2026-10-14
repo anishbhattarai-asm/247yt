@@ -18,7 +18,10 @@ const log = ctx.logs.for('server');
 
 const server = listen(createApp(ctx), port, host, async () => {
   log(`panel on http://${host}:${port}`);
-  if (!ctx.getConfig().auth.passwordHash) log('no password set yet — run: npm run set-password');
+  if (!ctx.getConfig().auth.passwordHash) {
+    const code = await ctx.settings.ensureSetupCode();
+    log(`no password yet: open the panel and enter setup code ${code} to choose one (or run: npm run set-password)`);
+  }
   await ctx.start();
 });
 

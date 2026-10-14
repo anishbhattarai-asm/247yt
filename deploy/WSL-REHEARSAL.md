@@ -98,7 +98,7 @@ journalctl -u stream-panel -f        # live logs (Ctrl+C to leave)
 
 ## 5b. Try OBS through the panel
 
-1. In Ubuntu: `hostname -I` and note the first address (e.g. `192.168.245.223`).
+1. In Ubuntu: `hostname -I` and note the first address (e.g. `172.22.48.10`).
 2. Panel → Settings → **OBS live input** → switch on → Advanced → **Server
    address** = that address → Save. Copy the **Server for OBS** (`srt://...`).
 3. OBS on this PC: Settings → Stream → Service **Custom...** → Server = the

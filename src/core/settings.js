@@ -13,7 +13,9 @@ import { JsonStore } from './store.js';
 export const DEFAULTS = {
   version: 1,
   server: { host: '127.0.0.1', port: 3000 },
-  auth: { passwordHash: null, sessionSecret: null, sessionHours: 168 },
+  // setupCode: one-time code that lets the first visitor choose the password
+  // (printed in the log, or an Oracle stack output). Cleared once it is used.
+  auth: { passwordHash: null, sessionSecret: null, sessionHours: 168, setupCode: null },
   // clientId/clientSecret: the owner's Google Cloud OAuth client for the
   // optional "Connect YouTube" (youtube.js); refreshToken, channel and
   // broadcastId are written by the panel itself, never by a patch.
@@ -37,7 +39,8 @@ export const DEFAULTS = {
   },
   // FFmpeg's FLV timestamps wrap at ~24.8 days, so the pusher restarts cleanly
   // every few days at a quiet hour (invisible to viewers — verified on YouTube).
-  restart: { everyDays: 7, at: '04:00' },
+  // timeZone: IANA name for "at"; empty = the server's own time zone.
+  restart: { everyDays: 7, at: '04:00', timeZone: '' },
   notifications: {
     discordWebhookUrl: '',
     events: {
@@ -47,6 +50,9 @@ export const DEFAULTS = {
   },
   healthcheck: { url: '', intervalMinutes: 5 },
   tunnel: { enabled: true, cloudflaredPath: 'cloudflared' },
+  // Stable link (finder.js): http://<server-ip>:<port> redirects to the
+  // current Cloudflare link. 0 = off; the Oracle stack turns it on (8080).
+  finder: { port: 0 },
   // OBS takeover: OBS streams to the panel over SRT (encrypted, passphrase),
   // the panel cuts over cleanly and returns to the playlist when OBS stops.
   // publicHost: what OBS connects to; empty = this server's detected public IP.
@@ -65,6 +71,7 @@ export const DEFAULTS = {
 export const SECRETS = [
   'auth.passwordHash',
   'auth.sessionSecret',
+  'auth.setupCode',
   'youtube.streamKey',
   'youtube.clientSecret',
   'youtube.refreshToken',
@@ -154,9 +161,22 @@ export class Settings {
     });
   }
 
+  // The code shown to whoever installs the panel; made once, kept until used.
+  async ensureSetupCode() {
+    if (!this.store.data.auth.setupCode) await this.setSetupCode(newSetupCode());
+    return this.store.data.auth.setupCode;
+  }
+
+  async setSetupCode(code) {
+    await this.store.update((d) => {
+      d.auth.setupCode = code;
+    });
+  }
+
   async setPasswordHash(hash) {
     await this.store.update((d) => {
       d.auth.passwordHash = hash;
+      d.auth.setupCode = null; // its only job was choosing the first password
       // Rotating the secret signs everyone out — right after a password change.
       d.auth.sessionSecret = randomBytes(32).toString('base64url');
     });
@@ -165,6 +185,13 @@ export class Settings {
 
 // SRT wants 10–79 characters; URL-safe so it can sit in OBS's server URL.
 const newObsPassphrase = () => randomBytes(18).toString('base64url');
+
+// XXXXX-XXXXX from letters and digits that can't be misread (no O/0, I/1/L).
+const CODE_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+export function newSetupCode() {
+  const c = [...randomBytes(10)].map((b) => CODE_CHARS[b % CODE_CHARS.length]).join('');
+  return `${c.slice(0, 5)}-${c.slice(5)}`;
+}
 
 // validation
 
@@ -220,6 +247,18 @@ function streamKey(v) {
   return s;
 }
 
+function timeZone(v) {
+  const s = str(v, 'Time zone', { pattern: /^[\w+\-/]{1,64}$/, allowEmpty: true });
+  if (s) {
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: s });
+    } catch {
+      fail(`Unknown time zone: ${s}`);
+    }
+  }
+  return s;
+}
+
 const FIELDS = {
   'youtube.streamKey': streamKey,
   'youtube.rtmpUrl': (v) => str(v, 'RTMP URL', { pattern: /^rtmps?:\/\/[^\s]+$/ }),
@@ -238,10 +277,12 @@ const FIELDS = {
   'profile.preset': (v) => oneOf(v, 'Preset', ['ultrafast', 'superfast', 'veryfast', 'faster', 'fast', 'medium']),
   'restart.everyDays': (v) => int(v, 'Restart interval (days)', 1, 20),
   'restart.at': (v) => str(v, 'Restart time', { pattern: /^([01]\d|2[0-3]):[0-5]\d$/ }),
+  'restart.timeZone': timeZone,
   'notifications.discordWebhookUrl': (v) => str(v, 'Discord webhook', { pattern: DISCORD, allowEmpty: true }),
   'healthcheck.url': (v) => str(v, 'Healthcheck URL', { pattern: /^https:\/\/[^\s]+$/, allowEmpty: true }),
   'healthcheck.intervalMinutes': (v) => int(v, 'Healthcheck interval', 1, 60),
   'tunnel.enabled': (v) => bool(v, 'Tunnel'),
+  'finder.port': (v) => (v === 0 ? 0 : int(v, 'Stable link port', 1024, 65535)),
   'obs.enabled': (v) => bool(v, 'OBS input'),
   'obs.port': (v) => int(v, 'OBS port', 1024, 65535),
   'obs.publicHost': (v) => str(v, 'Server address for OBS', { pattern: /^[\w.:-]{1,253}$/, allowEmpty: true }),
