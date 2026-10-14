@@ -351,7 +351,7 @@ Good to know:
 | Problem | Do this |
 |-|-|
 | Can't open the panel | Deploy button: use the stack's **Open the panel** link. By hand: get the newest link from Discord / `journalctl -u stream-panel \| grep 'panel URL'` |
-| Panel link says "This site can't be reached" (DNS) after the server was offline | Cloudflare drops a link that stays offline for a while. The panel checks its link every minute and gets a new one by itself within about 3 minutes of being back online (Discord gets it). Meanwhile, or any time: the stable link `http://<server-ip>:8080`. |
+| Panel link says "This site can't be reached" (DNS) after the server was offline | Cloudflare drops a link that stays offline for a while. The panel checks its link every minute and gets a new one by itself within about 3 minutes of being back online (Discord gets it). The stable link `http://<server-ip>:8080` follows: it leads to the new link as soon as there is one, so it's the address to bookmark. |
 | The Deploy button says the stack file can't be downloaded | The repository must be public, and its **Actions** must have built the `oracle-stack` release. |
 | "The panel is starting" for more than 20 minutes | The install stopped. With an SSH key: `tail -50 /var/log/stream-panel-install.log` on the server. Without one: stack → **Destroy**, then **Apply** again (nothing of yours is on it yet). |
 | "Wrong setup code" | Copy it again from the stack's **Application information**. After 5 wrong tries wait a minute. It stops working once a password is set: then sign in instead. |

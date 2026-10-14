@@ -304,8 +304,9 @@ someone who learns the panel password still can't open it.
 | Find the panel link | `http://<server-ip>:8080` (Deploy button), Discord, or `journalctl -u stream-panel \| grep 'panel URL'` |
 | See what's happening | Panel → **Logs**, or `journalctl -u stream-panel -f` |
 | Restart everything | `sudo systemctl restart stream-panel` (resumes where it was) |
-| Update to a new version | `bash deploy/update.sh` |
+| Update to a new version | `bash deploy/update.sh`, or the **Update panel** button in the Terminal tab |
 | Run a command without SSH | Panel → **Terminal** (its own password) |
+| Signed in on a device you no longer trust | Settings → Access → **Sign out all other browsers** |
 | Reset the panel password | `cd stream-panel && npm run set-password` |
 
 More in the guide's [Troubleshooting](deploy/SETUP-GUIDE.md#troubleshooting).
