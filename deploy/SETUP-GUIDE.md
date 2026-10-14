@@ -46,8 +46,9 @@ panel, all from Oracle's website. No SSH, no commands.
    recommended, it is the only way to fix things from the command line later
    (a forgotten password, for one). To make one on Windows, in PowerShell:
    `ssh-keygen -t ed25519`, press Enter three times, then choose the file
-   `C:\Users\<you>\.ssh\id_ed25519.pub`. Leave the sizes as they are (they
-   fit Always Free) → **Next**.
+   `C:\Users\<you>\.ssh\id_ed25519.pub`. It can only be added now, when
+   the server is made. Leave the sizes as they are (they fit Always Free) →
+   **Next**.
 3. Tick **Run apply** → **Create**. The job takes a few minutes.
    - **"Out of host capacity"**: normal for free servers, nothing was made.
      Stack → **Edit** → another availability domain, or simply **Apply**
@@ -61,6 +62,10 @@ panel, all from Oracle's website. No SSH, no commands.
 
 That link (`http://<server-ip>:8080`) never changes: bookmark it on your
 phone. Continue at **step 5** (steps 3 and 4 are what the button did).
+
+Running **Apply** again later is safe: it never rebuilds the server or
+touches your videos. Availability domain, disk size and SSH key only count
+when the server is first made; OCPUs and memory can be changed later.
 
 ### By hand
 

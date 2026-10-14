@@ -194,9 +194,12 @@ resource "oci_core_instance" "panel" {
     var.ssh_public_key != "" ? { ssh_authorized_keys = var.ssh_public_key } : {},
   )
 
-  # A newer Ubuntu image or an edited install script must never rebuild the
-  # server (and delete its videos) on a later Apply.
+  # A later Apply must never rebuild the server (and delete its videos): a
+  # newer Ubuntu image, an edited install script, another availability domain
+  # or disk size on the form are ignored once it exists. SSH keys also only
+  # count at creation (Oracle applies them at first boot). OCPUs and memory
+  # can still change: Oracle resizes the server in place.
   lifecycle {
-    ignore_changes = [metadata, source_details[0].source_id]
+    ignore_changes = [metadata, availability_domain, source_details]
   }
 }
