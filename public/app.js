@@ -918,6 +918,11 @@ for (const form of $$('#tab-settings form[data-form]')) {
   });
 }
 
+$('#btn-signout-others').addEventListener('click', async () => {
+  if (!(await confirmDialog('Sign out all other browsers?', 'Every other phone or computer signed in to this panel has to sign in again. This one stays signed in.', 'Sign them out'))) return;
+  act(() => api('POST', '/api/auth/logout-others'), 'Every other browser is signed out');
+});
+
 async function saveAccess(form) {
   const patch = formPatch(form);
   if (patch.tunnel?.enabled !== state.config.tunnel.enabled) await saveConfig(patch);

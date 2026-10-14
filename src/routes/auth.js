@@ -99,6 +99,15 @@ export function authRoutes(ctx, limiter) {
     res.json({ ok: true });
   });
 
+  // Signing out only forgets this browser's cookie; a copied cookie would
+  // keep working until it expires. This ends every session but this one.
+  r.post('/logout-others', requireAuth(ctx.getConfig), async (req, res) => {
+    await ctx.settings.rotateSessionSecret();
+    setSession(req, res, ctx.getConfig());
+    log(`signed out every other browser (from ${clientIp(req)})`);
+    res.json({ ok: true });
+  });
+
   // Also limited: a borrowed or copied session must not be a way to guess
   // the panel password at full speed.
   r.post('/password', requireAuth(ctx.getConfig), async (req, res) => {

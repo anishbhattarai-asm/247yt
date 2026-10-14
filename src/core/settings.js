@@ -185,6 +185,14 @@ export class Settings {
     });
   }
 
+  // Every session cookie is signed with this secret: a new one signs every
+  // browser out.
+  async rotateSessionSecret() {
+    await this.store.update((d) => {
+      d.auth.sessionSecret = randomBytes(32).toString('base64url');
+    });
+  }
+
   async setPasswordHash(hash) {
     await this.store.update((d) => {
       d.auth.passwordHash = hash;

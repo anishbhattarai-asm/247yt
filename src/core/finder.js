@@ -39,8 +39,12 @@ export class Finder extends EventEmitter {
 
   #listen(port) {
     const server = http.createServer((req, res) => this.#answer(req, res));
+    // Open to the whole internet and inside the panel's own process: cap it,
+    // so a flood of idle connections can't pile up here.
+    server.maxConnections = 200;
     server.requestTimeout = 10_000;
-    server.headersTimeout = 10_000;
+    server.headersTimeout = 5_000;
+    server.keepAliveTimeout = 1_000;
     server.on('error', (err) => {
       this.error = err.code === 'EADDRINUSE' ? `port ${port} is already in use` : err.message;
       this.log(`stable link: ${this.error}`);

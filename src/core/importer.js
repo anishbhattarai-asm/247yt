@@ -9,8 +9,10 @@
 //
 // Either way the file lands in media/incoming/ and is queued for normalizing.
 
+import { lookup } from 'node:dns/promises';
 import { createWriteStream } from 'node:fs';
 import { mkdir, open, rm, statfs } from 'node:fs/promises';
+import { BlockList, isIP } from 'node:net';
 import path from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
@@ -19,6 +21,47 @@ export const CHUNK_SIZE = 32 * 1024 * 1024;
 const KINDS = ['auto', 'video', 'audio', 'background'];
 
 const badRequest = (message) => Object.assign(new Error(message), { status: 400 });
+
+// Imports fetch from the public internet only: never this server itself, its
+// private network or the cloud's metadata service (which knows things about
+// the server). Checked for every address a name resolves to, on every
+// redirect.
+const INSIDE = new BlockList();
+for (const [net, bits] of [
+  ['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8], ['169.254.0.0', 16],
+  ['172.16.0.0', 12], ['192.0.0.0', 24], ['192.168.0.0', 16], ['198.18.0.0', 15], ['224.0.0.0', 3],
+]) INSIDE.addSubnet(net, bits, 'ipv4');
+for (const [net, bits] of [['::', 127], ['fc00::', 7], ['fe80::', 10], ['ff00::', 8], ['64:ff9b::', 96]]) INSIDE.addSubnet(net, bits, 'ipv6');
+
+export function isInsideAddress(address) {
+  const mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(address);
+  if (mapped) return INSIDE.check(mapped[1], 'ipv4');
+  return INSIDE.check(address, isIP(address) === 6 ? 'ipv6' : 'ipv4');
+}
+
+export async function assertPublicUrl(url, resolve = (host) => lookup(host, { all: true, verbatim: true })) {
+  const host = new URL(url).hostname.replace(/^\[|\]$/g, '');
+  const addresses = isIP(host) ? [host] : (await resolve(host)).map((a) => a.address);
+  if (!addresses.length || addresses.some(isInsideAddress)) {
+    throw badRequest('That link points inside this server\'s own network, which imports may not reach');
+  }
+}
+
+// fetch() that checks every hop of a redirect chain with assertPublicUrl.
+export async function fetchPublic(url, { signal, headers, maxRedirects = 8, check = assertPublicUrl } = {}) {
+  let current = url;
+  for (let hop = 0; hop <= maxRedirects; hop++) {
+    await check(current);
+    const res = await fetch(current, { redirect: 'manual', signal, headers });
+    if (![301, 302, 303, 307, 308].includes(res.status)) return Object.assign(res, { finalUrl: current });
+    await res.body?.cancel();
+    const next = res.headers.get('location');
+    if (!next) throw new Error(`The server answered HTTP ${res.status} without saying where to`);
+    current = new URL(next, current).toString();
+    if (!/^https?:$/.test(new URL(current).protocol)) throw badRequest('That link redirects to something other than http(s)');
+  }
+  throw new Error('That link redirects too many times');
+}
 
 // Share-page links -> direct download links.
 export function directUrl(input) {
@@ -54,7 +97,8 @@ const extOf = (name) => (path.extname(name).toLowerCase().match(/^\.[a-z0-9]{1,5
 const stem = (name) => path.basename(name, path.extname(name)) || name;
 
 export class Importer {
-  constructor({ library, normalizer, getConfig, log = () => {} }) {
+  constructor({ library, normalizer, getConfig, log = () => {}, fetch = fetchPublic }) {
+    this.fetch = fetch; // tests: a local server stands in for the internet
     this.library = library;
     this.normalizer = normalizer;
     this.getConfig = getConfig;
@@ -104,7 +148,7 @@ export class Importer {
     this.active.set(id, entry);
     let file = null;
     try {
-      const res = await fetch(url, { redirect: 'follow', signal: abort.signal, headers: { 'user-agent': 'stream-panel/0.1' } });
+      const res = await this.fetch(url, { signal: abort.signal, headers: { 'user-agent': 'stream-panel/0.1' } });
       if (!res.ok) throw new Error(`The server answered HTTP ${res.status}`);
       const type = res.headers.get('content-type') ?? '';
       if (type.includes('text/html')) {
@@ -112,7 +156,7 @@ export class Importer {
       }
       entry.total = Number(res.headers.get('content-length')) || null;
       await this.#checkSpace(entry.total);
-      const name = filenameFrom(res, res.url || url);
+      const name = filenameFrom(res, res.finalUrl || url);
       file = this.library.incomingPath(id, extOf(name));
       await this.library.update(id, { title: title || stem(name), incoming: file, bytes: entry.total });
       const max = this.getConfig().limits.maxUploadBytes;

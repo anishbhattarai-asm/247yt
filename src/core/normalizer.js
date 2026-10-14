@@ -17,7 +17,7 @@
 import { EventEmitter } from 'node:events';
 import { mkdir, rm, stat, statfs } from 'node:fs/promises';
 import path from 'node:path';
-import { fps, keyframeTimes, probe, runFfmpeg } from './ffmpeg.js';
+import { fps, keyframeTimes, PLAIN_FILE_ONLY, probe, runFfmpeg } from './ffmpeg.js';
 
 export const GOP_SECONDS = 2;
 const BACKGROUND_IMAGE_SECONDS = 10;
@@ -65,7 +65,7 @@ const finish = ['-map_metadata', '-1', '-movflags', '+faststart'];
 export function videoArgs(input, output, src, p) {
   const duration = Number(src.video.duration) || src.formatDuration;
   return [
-    '-i', input,
+    ...PLAIN_FILE_ONLY, '-i', input,
     // No audio: an inaudible noise floor (about -91 dB), not digital silence.
     // Silence encodes to ~2 kbps and YouTube then warns "audio bitrate 0"
     // (seen live); this keeps a normal audio bitrate and sounds silent.
@@ -80,13 +80,13 @@ export function videoArgs(input, output, src, p) {
 }
 
 export function remuxArgs(input, output, src) {
-  return ['-i', input, '-map', '0:v:0', '-map', '0:a:0', '-c', 'copy',
+  return [...PLAIN_FILE_ONLY, '-i', input, '-map', '0:v:0', '-map', '0:a:0', '-c', 'copy',
     '-t', Math.min(src.videoEnd, src.audioEnd).toFixed(3), ...finish, output];
 }
 
 export function audioArgs(input, output, p) {
   return [
-    '-i', input, '-map', '0:a:0', '-vn',
+    ...PLAIN_FILE_ONLY, '-i', input, '-map', '0:a:0', '-vn',
     '-af', `loudnorm=I=-14:TP=-1.5:LRA=11,aresample=${p.sampleRate},aformat=sample_fmts=fltp:channel_layouts=stereo`,
     ...aac(p), ...finish, output,
   ];
@@ -100,7 +100,7 @@ export function backgroundArgs(input, output, src, p) {
   const loops = !still && src.duration > 0 && src.duration < GOP_SECONDS ? Math.ceil(GOP_SECONDS / src.duration) : 0;
   return [
     ...(still ? ['-loop', '1', '-framerate', String(p.fps)] : loops ? ['-stream_loop', String(loops)] : []),
-    '-i', input, '-map', '0:v:0', '-an',
+    ...PLAIN_FILE_ONLY, '-i', input, '-map', '0:v:0', '-an',
     '-vf', videoFilter(p), '-t', seconds.toFixed(3),
     ...h264(p, { still, bufferSeconds: 1 }), ...finish, output,
   ];

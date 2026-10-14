@@ -284,7 +284,10 @@ someone who learns the panel password still can't open it.
   a Discord webhook leaks: delete it in Discord and make a new one. If the OBS
   address leaks: **New password**.
 - The panel itself has one password (`npm run set-password` on the server
-  resets it) and locks out repeated wrong guesses. The one-time **setup
+  resets it) and locks out repeated wrong guesses (also when they arrive all
+  at once); Discord is told if someone keeps guessing. Signed in somewhere
+  you shouldn't have been? Settings → Access → **Sign out all other
+  browsers**. The one-time **setup
   code** only works until a password is chosen, under the same lockout.
 - The stable link (`:8080`) only forwards to the panel's current Cloudflare
   link; it shows no panel pages and needs no password of its own.

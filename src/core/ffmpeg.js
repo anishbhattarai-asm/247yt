@@ -8,6 +8,11 @@ export const FFMPEG = process.env.FFMPEG || 'ffmpeg';
 export const FFPROBE = process.env.FFPROBE || 'ffprobe';
 
 const execFileP = promisify(execFile);
+
+// Put before an untrusted input (an upload or a download): FFmpeg may then
+// read that plain file and nothing else. A file that is really a playlist
+// can't make it open URLs, other protocols or network connections.
+export const PLAIN_FILE_ONLY = ['-protocol_whitelist', 'file'];
 const IMAGE_CODECS = new Set(['mjpeg', 'png', 'webp', 'bmp', 'tiff', 'jpegls']);
 
 export async function probe(file) {
@@ -16,7 +21,7 @@ export async function probe(file) {
     '-show_entries',
     'stream=index,codec_type,codec_name,profile,level,width,height,r_frame_rate,avg_frame_rate,pix_fmt,sample_rate,channels,start_time,duration,nb_frames,bit_rate,disposition:format=duration,format_name,size',
     '-of', 'json',
-    file,
+    ...PLAIN_FILE_ONLY, file,
   ], { maxBuffer: 16 * 1024 * 1024 });
   const info = JSON.parse(stdout);
   const streams = info.streams ?? [];
@@ -46,7 +51,7 @@ export async function probe(file) {
 export async function keyframeTimes(file, seconds = 20) {
   const { stdout } = await execFileP(FFPROBE, [
     '-v', 'error', '-select_streams', 'v:0', '-read_intervals', `%+${seconds}`,
-    '-show_entries', 'packet=pts_time,flags', '-of', 'csv=p=0', file,
+    '-show_entries', 'packet=pts_time,flags', '-of', 'csv=p=0', ...PLAIN_FILE_ONLY, file,
   ], { maxBuffer: 16 * 1024 * 1024 });
   return stdout.split('\n')
     .map((l) => l.split(','))
