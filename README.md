@@ -62,7 +62,7 @@ Any Ubuntu 22.04/24.04 server with systemd works too (x86 or ARM).
 Not tried on a real Oracle account yet (see **Status** above); if it fails,
 the **By hand** steps below work on any Ubuntu server.
 
-[![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/anishbhattarai-asm/247yt/releases/download/oracle-stack/stream-panel-oracle.zip)
+<a href="https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/anishbhattarai-asm/247yt/releases/download/oracle-stack/stream-panel-oracle.zip"><img src="https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg" alt="Deploy to Oracle Cloud" height="64"></a>
 
 1. Make an Oracle Cloud account (free; a card is asked for at sign-up):
    [step 1 of the guide](deploy/SETUP-GUIDE.md#1-oracle-cloud-account).

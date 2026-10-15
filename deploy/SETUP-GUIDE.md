@@ -42,7 +42,7 @@ offline (Terraform validation and a test against a stand-in for Oracle). If
 the button doesn't work for you, the **By hand** steps below do the same, and
 an issue describing what happened helps.
 
-[![Deploy to Oracle Cloud](https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg)](https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/anishbhattarai-asm/247yt/releases/download/oracle-stack/stream-panel-oracle.zip)
+<a href="https://cloud.oracle.com/resourcemanager/stacks/create?zipUrl=https://github.com/anishbhattarai-asm/247yt/releases/download/oracle-stack/stream-panel-oracle.zip"><img src="https://oci-resourcemanager-plugin.plugins.oci.oraclecloud.com/latest/deploy-to-oracle-cloud.svg" alt="Deploy to Oracle Cloud" height="64"></a>
 
 1. Click the button and sign in to Oracle. **Create stack** opens with this
    project filled in: tick **I have reviewed and accept the Oracle Terms of
