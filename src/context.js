@@ -31,7 +31,7 @@ export async function createContext({ dataDir, mediaDir, dest = null, stallTimeo
   const getConfig = () => settings.get();
   const redact = makeRedactor(() => {
     const c = getConfig();
-    return [c.youtube.streamKey, c.youtube.clientSecret, c.youtube.refreshToken, c.notifications.discordWebhookUrl,
+    return [c.youtube.streamKey, c.youtube.clientSecret, c.youtube.refreshToken, c.notifications.discordWebhookUrl, c.notifications.ntfy.topic,
       c.healthcheck.url, c.auth.sessionSecret, c.obs.passphrase, ...c.restream.destinations.map((d) => d.key)];
   });
   const logs = new LogBuffer({ redact, echo: echoLogs });
@@ -74,7 +74,8 @@ export async function createContext({ dataDir, mediaDir, dest = null, stallTimeo
     log: logs.for('supervisor'),
     preflight: () => (dest || envDest || getConfig().youtube.streamKey ? null : 'Set your YouTube stream key first.'),
   });
-  const notifier = new Notifier({ getConfig, redact, log: logs.for('discord') });
+  // Alerts to Discord and/or phones (ntfy); a tapped phone alert opens the panel.
+  const notifier = new Notifier({ getConfig, redact, log: logs.for('alerts'), panelLink: () => tunnel.status().url });
   const stats = new Stats({ mediaDir });
   const health = new Health({ getConfig, supervisor, stats, notifier, state, log: logs.for('health') });
   const tunnel = new Tunnel({ getConfig, port: getConfig().server.port, state, log: logs.for('tunnel') });

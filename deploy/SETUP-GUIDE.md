@@ -228,6 +228,20 @@ freezes, skips a broken file, or the panel's link changes:
 Discord server → channel settings → **Integrations → Webhooks → New Webhook →
 Copy Webhook URL**. Paste it into setup or the panel. Treat it like a password.
 
+**Phone notifications (no Discord needed)** — the same alerts as push
+notifications through the free **ntfy** app, with no account:
+1. Panel → Settings → **Alerts** → tick **Send alerts to my phone** (or, on the
+   first visit, **No Discord? Get alerts on your phone instead**).
+2. Install **ntfy** (Google Play, F-Droid or the App Store).
+3. Android: scan the code shown with the phone's camera, or open the panel on
+   the phone and tap **Open in the ntfy app**. iPhone: tap **+** in the app and
+   paste the name shown under the code.
+4. **Send test**: the phone buzzes. Tapping an alert opens the panel.
+
+The long random name is the only key to these alerts: keep it private (it
+can't control the panel). If it leaks: **Advanced → New private name**, then
+subscribe to the new one.
+
 **Healthchecks.io** — catches the one thing the server can't report itself:
 being completely dead (power, network, Oracle stopped it).
 1. Sign up free at healthchecks.io → **Add Check** → period **5 minutes**,
@@ -384,4 +398,5 @@ Good to know:
 | Terminal tab: "the terminal service isn't installed" | The server predates the terminal: run `bash deploy/update.sh` once over SSH. |
 | Forgot the terminal password | Over SSH: `cd stream-panel && node cli.js set-terminal-password` (or `node cli.js terminal-off`) |
 | Terminal says "Disconnected" right after **Update panel** | Normal: the panel restarted. Open the terminal again. |
+| Phone notifications: the test says sent but the phone stays quiet | Subscribe to exactly the name shown (copy it), allow ntfy to show notifications in the phone's settings, and on Android let it run in the background (battery settings). |
 | Discord says "Terminal opened" and it wasn't you | Change the terminal password and the panel password now (Terminal tab and Settings → Access). |

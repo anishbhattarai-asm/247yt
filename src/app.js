@@ -16,12 +16,14 @@ import { streamRoutes } from './routes/stream.js';
 import { terminalRoutes, terminalSocket } from './routes/terminal.js';
 
 const PUBLIC_DIR = fileURLToPath(new URL('../public/', import.meta.url));
-// The Terminal tab's browser side (xterm.js), straight from node_modules.
+// Browser libraries, straight from node_modules: the Terminal tab (xterm.js)
+// and the phone-notification QR code.
 const MODULES = fileURLToPath(new URL('../node_modules/', import.meta.url));
 const VENDOR = {
   'xterm.mjs': '@xterm/xterm/lib/xterm.mjs',
   'xterm.css': '@xterm/xterm/css/xterm.css',
   'addon-fit.mjs': '@xterm/addon-fit/lib/addon-fit.mjs',
+  'qrcode.mjs': 'qrcode-generator/dist/qrcode.mjs', // QR code for phone notifications
 };
 
 // Start listening with keep-alive longer than cloudflared's (90 s). Node's
@@ -65,7 +67,7 @@ export function createApp(ctx) {
   // Revalidate every time (cheap 304s): after an update a browser must never
   // mix old JS with new HTML, which a 1-hour cache did.
   app.use(express.static(PUBLIC_DIR, { maxAge: 0 }));
-  app.get('/vendor/xterm/:file', (req, res, next) => {
+  app.get('/vendor/:file', (req, res, next) => {
     const file = VENDOR[req.params.file];
     if (!file) return next();
     res.sendFile(path.join(MODULES, file), { maxAge: '1d' });

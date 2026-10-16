@@ -31,6 +31,16 @@ export const mono = (s) => `\`${String(s).replace(/`/g, "'")}\``;
 const errorField = (error) => (error
   ? [{ name: 'FFmpeg said', value: `\`\`\`${String(error).replace(/`/g, "'").slice(0, 900)}\`\`\``, inline: false }]
   : []);
+// Discord formatting -> plain text for phone notifications: timestamps
+// written out, code marks and bold removed.
+export function plain(text) {
+  return String(text ?? '')
+    .replace(/<t:(\d+):\w>/g, (_, s) => `${new Date(Number(s) * 1000).toISOString().slice(0, 16).replace('T', ' ')} UTC`)
+    .replace(/```/g, '')
+    .replace(/`/g, '')
+    .replace(/\*\*/g, '')
+    .trim();
+}
 const human = (s) => (s < 90 ? `${Math.round(s)} s` : s < 5400 ? `${Math.round(s / 60)} min` : `${(s / 3600).toFixed(1)} h`);
 
 // Network failures are retried: alerts matter most when the network is flaky
@@ -39,7 +49,7 @@ const human = (s) => (s < 90 ? `${Math.round(s)} s` : s < 5400 ? `${Math.round(s
 const RETRY_DELAYS = [5, 15, 30, 60, 120, 300];
 
 export class Notifier {
-  constructor({ getConfig, redact = (s) => s, source = 'stream-panel', log = () => {}, retryDelays = RETRY_DELAYS }) {
+  constructor({ getConfig, redact = (s) => s, source = 'stream-panel', log = () => {}, retryDelays = RETRY_DELAYS, panelLink = () => null }) {
     this.getConfig = getConfig;
     this.redact = redact;
     this.source = source;
@@ -48,6 +58,8 @@ export class Notifier {
     this.queue = Promise.resolve();
     this.icons = new Map();
     this.stats = { sent: 0, failed: 0, lastError: null };
+    this.ntfyStats = { sent: 0, failed: 0, lastError: null };
+    this.panelLink = panelLink; // tapping a phone notification opens the panel (not panelUrl: that's an alert)
   }
 
   // event templates
@@ -243,7 +255,7 @@ export class Notifier {
   }
 
   test() {
-    this.#send(null, 'start', { title: 'Test notification', description: 'Discord alerts are working.' });
+    this.#send(null, 'start', { title: 'Test notification', description: 'Alerts from your Stream Panel are working.' });
   }
 
   flush() {
@@ -252,10 +264,47 @@ export class Notifier {
 
   // transport
 
-  #send(event, kind, { title, description = '', fields = [] }) {
+  #send(event, kind, message) {
     const cfg = this.getConfig().notifications;
-    if (!cfg.discordWebhookUrl) return;
     if (event && cfg.events[event] === false) return;
+    if (cfg.discordWebhookUrl) this.#toDiscord(cfg.discordWebhookUrl, kind, message);
+    if (cfg.ntfy?.enabled && cfg.ntfy.topic) this.#toNtfy(cfg.ntfy, kind, message);
+  }
+
+  // Phone notification (ntfy): plain text, since the app shows no Discord
+  // formatting. Drops and warnings are high priority (sound even on quiet).
+  #toNtfy({ server, topic }, kind, { title, description = '', fields = [] }) {
+    const r = this.redact;
+    const lines = [plain(description), ...fields.map((f) => `${plain(f.name)}: ${plain(f.value)}`)].filter(Boolean);
+    const link = /https:\/\/\S+/.exec(description)?.[0] ?? this.panelLink();
+    const body = {
+      topic,
+      title: r(plain(title)).slice(0, 250),
+      message: r(lines.join('\n')).slice(0, 3500) || r(plain(title)),
+      priority: ['dropped', 'failing', 'warning'].includes(kind) ? 4 : 3,
+      ...(link ? { click: link } : {}),
+    };
+    this.queue = this.queue
+      .then(() => this.#retrying('ntfy', () => this.#ntfyOnce(server, body)))
+      .then(() => this.ntfyStats.sent++)
+      .catch((err) => {
+        this.ntfyStats.failed++;
+        this.ntfyStats.lastError = r(err.message);
+        this.log(`ntfy: ${this.ntfyStats.lastError}`);
+      });
+  }
+
+  async #ntfyOnce(server, body) {
+    const res = await fetch(`${server}/`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) throw Object.assign(new Error(`ntfy ${res.status}: ${(await res.text()).slice(0, 200)}`), { httpStatus: res.status });
+  }
+
+  #toDiscord(url, kind, { title, description = '', fields = [] }) {
     const r = this.redact;
     const embed = {
       author: { name: r(this.source) },
@@ -265,9 +314,8 @@ export class Notifier {
       fields: fields.slice(0, 25).map((f) => ({ name: r(f.name).slice(0, 256), value: r(f.value).slice(0, 1024), inline: f.inline ?? true })),
       timestamp: new Date().toISOString(),
     };
-    const url = cfg.discordWebhookUrl;
     this.queue = this.queue
-      .then(() => this.#post(url, embed, kind))
+      .then(() => this.#retrying('discord', () => this.#postOnce(url, embed, kind)))
       .then(() => this.stats.sent++)
       .catch((err) => {
         this.stats.failed++;
@@ -284,14 +332,14 @@ export class Notifier {
     return this.icons.get(kind);
   }
 
-  async #post(url, embed, kind) {
+  async #retrying(name, once) {
     for (let i = 0; ; i++) {
       try {
-        return await this.#postOnce(url, embed, kind);
+        return await once();
       } catch (err) {
         const network = !err.httpStatus; // fetch threw: DNS, timeout, connection reset
         if (!network || i >= this.retryDelays.length) throw err;
-        this.log(`discord: ${this.redact(err.message)} — retrying in ${this.retryDelays[i]} s`);
+        this.log(`${name}: ${this.redact(err.message)} — retrying in ${this.retryDelays[i]} s`);
         await new Promise((r) => setTimeout(r, this.retryDelays[i] * 1000));
       }
     }

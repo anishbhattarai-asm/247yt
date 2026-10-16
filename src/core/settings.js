@@ -44,6 +44,9 @@ export const DEFAULTS = {
   restart: { everyDays: 7, at: '04:00', timeZone: '' },
   notifications: {
     discordWebhookUrl: '',
+    // Phone notifications through the free ntfy app (no account): the panel
+    // makes a long random topic, which is the only key to the alerts.
+    ntfy: { enabled: false, server: 'https://ntfy.sh', topic: null },
     events: {
       start: true, stopped: true, dropped: true, online: true, frozen: true,
       skipped: true, failing: true, panelUrl: true, lowDisk: true, highCpu: true, obs: true, youtube: true, restream: true,
@@ -81,6 +84,7 @@ export const SECRETS = [
   'youtube.clientSecret',
   'youtube.refreshToken',
   'notifications.discordWebhookUrl',
+  'notifications.ntfy.topic',
   'healthcheck.url',
   'obs.passphrase',
 ];
@@ -158,6 +162,15 @@ export class Settings {
   // Values the panel sets itself (not user input, so no patch validation).
   async setInternal(fn) {
     await this.store.update(fn);
+  }
+
+  // A new private ntfy topic (phones subscribed to the old one stop getting
+  // alerts until they subscribe to the new one).
+  async newNtfyTopic() {
+    await this.store.update((d) => {
+      d.notifications.ntfy.topic = `stream-panel-${randomBytes(18).toString('base64url')}`;
+    });
+    return this.store.data.notifications.ntfy.topic;
   }
 
   async newObsPassphrase() {
@@ -299,6 +312,8 @@ const FIELDS = {
   'restart.at': (v) => str(v, 'Restart time', { pattern: /^([01]\d|2[0-3]):[0-5]\d$/ }),
   'restart.timeZone': timeZone,
   'notifications.discordWebhookUrl': (v) => str(v, 'Discord webhook', { pattern: DISCORD, allowEmpty: true }),
+  'notifications.ntfy.enabled': (v) => bool(v, 'Phone notifications'),
+  'notifications.ntfy.server': (v) => str(v, 'ntfy server', { pattern: /^https:\/\/[\w.-]+(:\d+)?(\/[\w.\-/]*)?$/ }).replace(/\/+$/, ''),
   'healthcheck.url': (v) => str(v, 'Healthcheck URL', { pattern: /^https:\/\/[^\s]+$/, allowEmpty: true }),
   'healthcheck.intervalMinutes': (v) => int(v, 'Healthcheck interval', 1, 60),
   'tunnel.enabled': (v) => bool(v, 'Tunnel'),

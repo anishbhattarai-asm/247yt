@@ -27,8 +27,9 @@ playlist carries on when you stop.
   nobody else needs your stream key.
 - **More platforms at once:** the same stream to Twitch, Kick, Facebook or
   any RTMP server, each reconnecting on its own, with almost no extra CPU.
-- **Alerts in Discord:** stream started or dropped, back online, YouTube
-  health turning Poor, the panel's new link, OBS going live.
+- **Alerts in Discord or on your phone:** stream started or dropped, back
+  online, YouTube health turning Poor, the panel's new link, OBS going live.
+  Phone alerts use the free ntfy app: no account, scan a code.
 - **Optional YouTube connection:** sets up the broadcast for you and shows
   YouTube's own stream health.
 - **Set up from the browser:** one button creates the Oracle server and
@@ -47,7 +48,7 @@ playlist carries on when you stop.
 |-|-|-|
 | Oracle Cloud account (Always Free ARM server) | Free (a card is asked for at sign-up) | Running it 24/7 |
 | A YouTube channel with live streaming enabled | Free | Streaming |
-| A Discord server where you can add a webhook | Free | Alerts: stream dropped or back, the panel's new link (strongly recommended) |
+| A Discord server where you can add a webhook, or the free ntfy phone app | Free | Alerts: stream dropped or back, the panel's new link (strongly recommended) |
 | A Healthchecks.io account | Free | Alerts if the whole server dies (optional) |
 | A Google Cloud project | Free | Connect YouTube (optional) |
 | OBS Studio 27 or newer | Free | Going live from OBS (optional) |
@@ -74,10 +75,10 @@ the **By hand** steps below work on any Ubuntu server.
    install itself. The stack's **Application information** tab has **Open the
    panel** and your **Setup code**.
 4. Open the panel, enter the setup code, choose your password.
-5. Next it asks for a **Discord webhook**, so you get a message when the
-   stream drops, comes back, or the panel gets a new link. Takes a minute and
-   is strongly recommended; **Skip for now** is fine too (the Getting started
-   list reminds you).
+5. Next it asks how to reach you when something happens: a **Discord
+   webhook**, or (no Discord?) **phone notifications** through the free ntfy
+   app: scan a code, done. Strongly recommended; **Skip for now** is fine too
+   (the Getting started list reminds you).
 
 <p>
   <img src="docs/images/setup.png" width="320" alt="First visit: setup code and password">
@@ -205,11 +206,18 @@ server. **Disconnect** (or myaccount.google.com/permissions) removes access.
 <img src="docs/images/alerts.png" width="520" alt="Alerts card">
 
 Strongly recommended: the stream runs on the server, so without alerts you
-won't know it dropped until someone tells you. The panel asks for a Discord
-webhook right after you choose the password; if you skipped it, add it here.
+won't know it dropped until someone tells you. The panel asks right after you
+choose the password; if you skipped it, set it up here. Use Discord, your
+phone, or both: every alert goes to each one that is on.
 
 - **Discord**: your server → channel settings → **Integrations → Webhooks →
   New Webhook → Copy Webhook URL** → paste → **Send test**.
+- **Phone (ntfy)**: tick **Send alerts to my phone**, install the free
+  **ntfy** app, then on Android scan the code with the camera (or tap **Open
+  in the ntfy app** on the phone); on iPhone tap **+** in the app and paste the
+  name shown. **Send test**: the phone buzzes. No account. The long random name
+  is the only key to your alerts, so keep it private (it can't control the
+  panel); **New private name** under Advanced replaces it.
 - **Healthchecks.io**: **Add Check** (period 5 min, grace 10 min) → paste its
   ping URL. In Healthchecks add the Discord integration: you'll hear about it
   if the whole server goes down.

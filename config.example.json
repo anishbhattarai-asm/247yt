@@ -45,6 +45,11 @@
   },
   "notifications": {
     "discordWebhookUrl": "",
+    "ntfy": {
+      "enabled": false,
+      "server": "https://ntfy.sh",
+      "topic": null
+    },
     "events": {
       "start": true,
       "stopped": true,
@@ -59,7 +64,8 @@
       "obs": true,
       "youtube": true,
       "restream": true,
-      "terminal": true
+      "terminal": true,
+      "guessing": true
     }
   },
   "healthcheck": {

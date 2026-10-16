@@ -215,6 +215,8 @@ async function showAlertsStep() {
   $('#setup-form').hidden = true;
   $('#alerts-step').hidden = false;
   $('#alerts-ok').hidden = true;
+  $('#alerts-phone').hidden = true;
+  $('#alerts-phone-open').hidden = false;
   $('#alerts-continue').textContent = 'Skip for now';
   $('#alerts-webhook').focus();
 }
@@ -256,6 +258,42 @@ $('#alerts-step').addEventListener('submit', async (e) => {
 
 $('#alerts-continue').addEventListener('click', leaveAlertsStep);
 
+// The no-Discord way, right in the first-visit step.
+let firstRunNtfy = null;
+$('#alerts-phone-open').addEventListener('click', async () => {
+  const err = $('#alerts-error');
+  err.textContent = '';
+  try {
+    firstRunNtfy = await api('POST', '/api/config/ntfy', { enabled: true });
+    $('#alerts-phone').hidden = false;
+    $('#alerts-phone-open').hidden = true;
+    await showNtfyCode(firstRunNtfy, { img: $('#alerts-phone-qr'), topic: $('#alerts-phone-topic'), app: $('#alerts-phone-app') });
+    $('#alerts-continue').textContent = 'Open the panel';
+  } catch (e2) {
+    err.textContent = e2.message;
+  }
+});
+$('#alerts-phone-copy').addEventListener('click', () => {
+  if (firstRunNtfy?.topic) act(() => navigator.clipboard.writeText(firstRunNtfy.topic), 'Copied: paste it in the ntfy app');
+});
+$('#alerts-phone-test').addEventListener('click', async () => {
+  const err = $('#alerts-error');
+  const done = $('#alerts-ok');
+  err.textContent = '';
+  done.hidden = true;
+  try {
+    const r = await api('POST', '/api/config/test-notification');
+    if (r.ntfy?.ok) {
+      done.textContent = 'Sent. If the phone didn\'t buzz, check that you subscribed to the name above.';
+      done.hidden = false;
+    } else {
+      err.textContent = `The test didn't go out: ${r.ntfy?.error ?? r.error ?? 'unknown error'}`;
+    }
+  } catch (e2) {
+    err.textContent = e2.message;
+  }
+});
+
 $('#logout').addEventListener('click', async () => {
   closeTerminal();
   await api('POST', '/api/auth/logout').catch(() => {});
@@ -274,6 +312,7 @@ function selectTab(tab) {
   if (tab === 'settings') {
     renderConfig();
     loadObs().catch(() => {});
+    loadNtfy().catch(() => {});
   }
   history.replaceState(null, '', `#${tab}`);
 }
@@ -388,6 +427,8 @@ function renderStatus() {
   $('#copy-finder').hidden = !f?.url;
   const d = s.discord;
   setStatusText($('#acc-discord'), !d.configured ? ['Not set up', 'muted'] : d.lastError && d.failed ? [`Error: ${d.lastError}`, 'bad'] : [`On · ${d.sent} sent`, 'ok']);
+  const ph = s.phone;
+  setStatusText($('#acc-phone'), !ph?.configured ? ['Not set up', 'muted'] : ph.lastError && ph.failed ? [`Error: ${ph.lastError}`, 'bad'] : [`On · ${ph.sent} sent`, 'ok']);
   const hc = s.health.healthcheck;
   setStatusText($('#acc-health'), !hc.configured ? ['Not set up', 'muted']
     : hc.at ? [`${hc.ok ? 'OK' : 'Reporting a problem'} · ${span((Date.now() - hc.at) / 1000)} ago`, hc.ok ? 'ok' : 'warn'] : ['Waiting for first ping', 'muted']);
@@ -425,6 +466,13 @@ function goToField(name) {
   el.scrollIntoView({ block: 'center', behavior: 'smooth' });
   el.focus({ preventScroll: true });
 }
+function goToEl(selector) {
+  selectTab('settings');
+  const el = $(selector);
+  if (!el) return;
+  el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  el.focus({ preventScroll: true });
+}
 const goBtn = (label, name) => h('button', { type: 'button', class: 'btn btn-small btn-ghost', onclick: () => goToField(name) }, label);
 
 function guideSteps(s) {
@@ -442,11 +490,14 @@ function guideSteps(s) {
       actions: [h('button', { type: 'button', class: 'btn btn-small btn-ghost', onclick: () => selectTab('library') }, 'Open Library')],
     },
     {
-      done: s.discord.configured,
-      optional: true,
-      title: 'Get alerts in Discord',
-      text: 'Stream started, dropped or back, YouTube health, and the panel\'s new link whenever it changes.',
-      actions: [extLink('How to make a webhook', LINKS.discordHelp), goBtn('Paste it in Settings', 'notifications.discordWebhookUrl')],
+      done: s.discord.configured || Boolean(s.phone?.configured),
+      title: 'Get alerts: Discord or your phone',
+      text: 'Hear when the stream starts, drops or comes back, and get the panel\'s new link whenever it changes. Discord, or the free ntfy phone app (no account).',
+      actions: [
+        extLink('How to make a webhook', LINKS.discordHelp),
+        goBtn('Paste it in Settings', 'notifications.discordWebhookUrl'),
+        h('button', { type: 'button', class: 'btn btn-small btn-ghost', onclick: () => goToEl('#ntfy-on') }, 'Phone notifications'),
+      ],
     },
     {
       done: s.health.healthcheck.configured,
@@ -1275,7 +1326,64 @@ $('#btn-obs-pass').addEventListener('click', async () => {
   }, 'New password set — copy the new address into OBS');
 });
 
-$('#btn-test-alert').addEventListener('click', () => act(() => api('POST', '/api/config/test-notification'), 'Test alert sent — check Discord'));
+$('#btn-test-alert').addEventListener('click', () => act(() => api('POST', '/api/config/test-notification'), 'Test alert sent: check Discord and your phone'));
+
+// phone notifications (ntfy)
+//
+// No account: the panel makes a long random topic; the phone subscribes to
+// it (Android: scan the code, which opens the app; iPhone: paste the name).
+
+let qrcodeLib = null;
+async function qrImage(text) {
+  qrcodeLib ??= (await import('/vendor/qrcode.mjs')).default;
+  const qr = qrcodeLib(0, 'M');
+  qr.addData(text);
+  qr.make();
+  return qr.createDataURL(4, 2);
+}
+
+// Opens the ntfy Android app straight on the topic, subscribing to it.
+const ntfyAppLink = (n) => `ntfy://${new URL(n.server).host}/${n.topic}?display=${encodeURIComponent('Stream Panel')}`;
+
+async function showNtfyCode(n, { img, topic, app }) {
+  topic.textContent = n.topic ?? '';
+  app.href = n.topic ? ntfyAppLink(n) : '#';
+  if (n.topic) img.src = await qrImage(ntfyAppLink(n));
+}
+
+let ntfy = null;
+async function loadNtfy() {
+  ntfy = await api('GET', '/api/config/ntfy');
+  renderNtfy();
+}
+
+function renderNtfy() {
+  if (!ntfy) return;
+  $('#ntfy-on').checked = ntfy.enabled;
+  $('#ntfy-details').hidden = !ntfy.enabled;
+  const state = $('#ntfy-state');
+  state.textContent = !ntfy.enabled ? 'Off' : ntfy.lastError ? `Error: ${ntfy.lastError}` : `On · ${ntfy.sent} sent`;
+  state.classList.toggle('set', ntfy.enabled && !ntfy.lastError);
+  if (ntfy.enabled) showNtfyCode(ntfy, { img: $('#ntfy-qr'), topic: $('#ntfy-topic'), app: $('#ntfy-app') }).catch(() => {});
+}
+
+$('#ntfy-on').addEventListener('change', (e) => act(async () => {
+  ntfy = await api('POST', '/api/config/ntfy', { enabled: e.target.checked });
+  renderNtfy();
+  loadStatus().catch(() => {});
+}, e.target.checked ? 'Phone notifications on: subscribe in the ntfy app, then Send test' : 'Phone notifications off'));
+
+$('#copy-ntfy').addEventListener('click', () => {
+  if (ntfy?.topic) act(() => navigator.clipboard.writeText(ntfy.topic), 'Copied: paste it in the ntfy app');
+});
+
+$('#ntfy-new').addEventListener('click', async () => {
+  if (!(await confirmDialog('Make a new private name?', 'Phones subscribed to the old name stop getting alerts until they subscribe to the new one.', 'Make new'))) return;
+  act(async () => {
+    ntfy = await api('POST', '/api/config/ntfy/new-topic');
+    renderNtfy();
+  }, 'New name: subscribe to it in the ntfy app');
+});
 
 // terminal
 //
@@ -1305,8 +1413,8 @@ function renderTerminal() {
 // xterm.js is only fetched the first time a terminal opens.
 async function terminalLib() {
   if (term.lib) return term.lib;
-  if (!$('link[data-xterm]')) document.head.append(h('link', { rel: 'stylesheet', href: '/vendor/xterm/xterm.css', 'data-xterm': true }));
-  const [{ Terminal }, { FitAddon }] = await Promise.all([import('/vendor/xterm/xterm.mjs'), import('/vendor/xterm/addon-fit.mjs')]);
+  if (!$('link[data-xterm]')) document.head.append(h('link', { rel: 'stylesheet', href: '/vendor/xterm.css', 'data-xterm': true }));
+  const [{ Terminal }, { FitAddon }] = await Promise.all([import('/vendor/xterm.mjs'), import('/vendor/addon-fit.mjs')]);
   term.lib = { Terminal, FitAddon };
   return term.lib;
 }

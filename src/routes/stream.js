@@ -33,6 +33,7 @@ export function streamRoutes(ctx) {
       normalizer: ctx.normalizer.status(),
       system: await ctx.stats.snapshot(),
       discord: { configured: Boolean(cfg.notifications.discordWebhookUrl), ...ctx.notifier.stats },
+      phone: { configured: Boolean(cfg.notifications.ntfy.enabled && cfg.notifications.ntfy.topic), ...ctx.notifier.ntfyStats },
       obs: ctx.ingest.status(),
       youtube: ctx.youtube.status(),
       restream: ctx.restream.status(),

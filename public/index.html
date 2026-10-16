@@ -80,7 +80,7 @@
       <div class="brand brand-lg"><svg class="i"><use href="#i-bell"/></svg><span>Get alerts</span></div>
       <div class="setup-intro">
         <h1>Know when something happens</h1>
-        <p class="muted small">The stream runs on the server, so you won't see problems unless something tells you. With Discord the panel messages you when:</p>
+        <p class="muted small">The stream runs on the server, so you won't see problems unless something tells you. The panel can message you, in Discord or on your phone, when:</p>
       </div>
       <ul class="checklist small">
         <li><svg class="i"><use href="#i-check"/></svg><span>the stream starts, drops or comes back</span></li>
@@ -94,6 +94,21 @@
         <small class="muted">In Discord: pick a channel → its settings (gear) → <b>Integrations</b> → <b>Webhooks</b> → <b>New Webhook</b> → <b>Copy Webhook URL</b>, then paste it here.</small>
       </label>
       <div class="btn-row"><a class="btn btn-small" href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks" target="_blank" rel="noopener">How to make a webhook<svg class="i i-sm"><use href="#i-external"/></svg></a></div>
+      <button type="button" class="link-btn" id="alerts-phone-open">No Discord? Get alerts on your phone instead</button>
+      <div id="alerts-phone" class="ntfy-details" hidden>
+        <ol class="small ntfy-steps">
+          <li>Install the free <b>ntfy</b> app (Google Play, F-Droid or the App Store). No account needed.</li>
+          <li><b>Android:</b> scan this code with the camera, or tap <b>Open in the ntfy app</b> on the phone. <b>iPhone:</b> tap <b>+</b> in the app and paste the name.</li>
+        </ol>
+        <div class="ntfy-sub">
+          <img id="alerts-phone-qr" class="ntfy-qr" alt="Code to subscribe in the ntfy app" width="150" height="150">
+          <div class="ntfy-side">
+            <div class="url-row"><code id="alerts-phone-topic" class="mono small wrap"></code><button type="button" id="alerts-phone-copy" class="icon-btn small" title="Copy" aria-label="Copy the topic name"><svg class="i"><use href="#i-copy"/></svg></button></div>
+            <a class="btn btn-small" id="alerts-phone-app">Open in the ntfy app</a>
+            <button type="button" class="btn btn-small" id="alerts-phone-test"><svg class="i"><use href="#i-bell"/></svg>Send a test to my phone</button>
+          </div>
+        </div>
+      </div>
       <p id="alerts-error" class="form-error" role="alert"></p>
       <p id="alerts-ok" class="ok small" hidden></p>
       <button class="btn btn-primary btn-block" type="submit" id="alerts-save">Save and send a test message</button>
@@ -178,6 +193,7 @@
             <div class="span2"><dt>Panel link</dt><dd class="url-row"><span id="acc-url" class="mono small">—</span><button id="copy-url" class="icon-btn small" title="Copy link" aria-label="Copy link"><svg class="i"><use href="#i-copy"/></svg></button></dd></div>
             <div class="span2" id="acc-finder-row" hidden><dt>Stable link (always leads here)</dt><dd class="url-row"><span id="acc-finder" class="mono small">—</span><button id="copy-finder" class="icon-btn small" title="Copy link" aria-label="Copy the stable link"><svg class="i"><use href="#i-copy"/></svg></button></dd></div>
             <div><dt>Discord</dt><dd id="acc-discord">—</dd></div>
+            <div><dt>Phone alerts</dt><dd id="acc-phone">—</dd></div>
             <div><dt>Heartbeat</dt><dd id="acc-health">—</dd></div>
             <div><dt>OBS input</dt><dd id="acc-obs">—</dd></div>
             <div><dt>YouTube</dt><dd id="acc-yt">—</dd></div>
@@ -315,6 +331,35 @@
           <small class="muted">In Discord: channel settings, Integrations, Webhooks, New Webhook, Copy Webhook URL.</small>
         </label>
         <div class="btn-row"><a class="btn btn-small" href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks" target="_blank" rel="noopener">How to make a webhook<svg class="i i-sm"><use href="#i-external"/></svg></a></div>
+        <div class="field">
+          <span>Phone notifications <em class="state" id="ntfy-state"></em></span>
+          <label class="switch"><input type="checkbox" id="ntfy-on"><span>Send alerts to my phone with the free ntfy app (no account, no Discord needed)</span></label>
+          <div id="ntfy-details" class="ntfy-details" hidden>
+            <ol class="small ntfy-steps">
+              <li>Install <b>ntfy</b> on your phone (Google Play, F-Droid or the App Store).</li>
+              <li><b>Android:</b> scan this code with the camera (or tap <b>Open in the ntfy app</b> on the phone). <b>iPhone:</b> in the app tap <b>+</b> and paste the name below.</li>
+              <li>Press <b>Send test</b> below: the phone should buzz.</li>
+            </ol>
+            <div class="ntfy-sub">
+              <img id="ntfy-qr" class="ntfy-qr" alt="Code to subscribe in the ntfy app" width="168" height="168">
+              <div class="ntfy-side">
+                <div class="url-row"><code id="ntfy-topic" class="mono small wrap"></code><button type="button" id="copy-ntfy" class="icon-btn small" title="Copy" aria-label="Copy the topic name"><svg class="i"><use href="#i-copy"/></svg></button></div>
+                <small class="muted">This name is the only key to your phone alerts: keep it private (it can't control the panel).</small>
+                <div class="btn-row">
+                  <a class="btn btn-small" id="ntfy-app">Open in the ntfy app</a>
+                  <a class="btn btn-small" href="https://ntfy.sh/" target="_blank" rel="noopener" id="ntfy-site">About ntfy<svg class="i i-sm"><use href="#i-external"/></svg></a>
+                </div>
+                <details class="advanced">
+                  <summary>Advanced</summary>
+                  <div class="form-card">
+                    <button type="button" class="btn btn-small" id="ntfy-new"><svg class="i"><use href="#i-restart"/></svg>New private name</button>
+                    <small class="muted">Use it if the name leaked; phones must subscribe to the new one.</small>
+                  </div>
+                </details>
+              </div>
+            </div>
+          </div>
+        </div>
         <fieldset class="checks">
           <legend class="small muted">Send an alert when the stream…</legend>
           <label><input type="checkbox" name="notifications.events.start"> starts</label>
