@@ -165,14 +165,15 @@ if [ "$FINDER" -gt 0 ]; then open_port tcp "$FINDER" "the panel's stable link"; 
 
 say "6/6  Service"
 bash deploy/install-units.sh # the panel, and the Terminal tab's socket
-sudo systemctl enable --now stream-panel >/dev/null
-sudo systemctl restart stream-panel
+sudo systemctl enable stream-panel >/dev/null 2>&1
+sudo systemctl restart stream-panel # starts it, or restarts it with the new code (one start, one link)
 
 say "Done."
 if [ "$FINDER" -gt 0 ]; then
   ip=$(curl -fsS --max-time 5 https://1.1.1.1/cdn-cgi/trace 2>/dev/null | sed -n 's/^ip=//p' || true)
   echo "Open the panel:         http://${ip:-<public IP>}:${FINDER}"
-  echo "                        (TCP ${FINDER} must be open in Oracle's security list too)"
+  echo "                        (the Deploy button opens TCP ${FINDER} in Oracle's firewall;"
+  echo "                        installed by hand, add it to the VCN's security list)"
 fi
 if [ "$UNATTENDED" = 1 ]; then
   echo "First visit: enter the setup code shown above, then choose the panel password."
