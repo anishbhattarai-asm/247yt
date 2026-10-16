@@ -72,7 +72,32 @@
       <label class="field"><span>New password</span><input id="setup-password" type="password" autocomplete="new-password" minlength="8" required></label>
       <label class="field"><span>Same password again</span><input id="setup-password2" type="password" autocomplete="new-password" minlength="8" required></label>
       <p id="setup-error" class="form-error" role="alert"></p>
-      <button class="btn btn-primary btn-block" type="submit">Set password and open the panel</button>
+      <button class="btn btn-primary btn-block" type="submit">Set password and continue</button>
+    </form>
+    <!-- Right after the first password: alerts, so the owner hears when
+         something happens (skippable; Getting started reminds them later). -->
+    <form id="alerts-step" class="login-card" hidden>
+      <div class="brand brand-lg"><svg class="i"><use href="#i-bell"/></svg><span>Get alerts</span></div>
+      <div class="setup-intro">
+        <h1>Know when something happens</h1>
+        <p class="muted small">The stream runs on the server, so you won't see problems unless something tells you. With Discord the panel messages you when:</p>
+      </div>
+      <ul class="checklist small">
+        <li><svg class="i"><use href="#i-check"/></svg><span>the stream starts, drops or comes back</span></li>
+        <li><svg class="i"><use href="#i-check"/></svg><span>the panel gets a new link (the message has it)</span></li>
+        <li><svg class="i"><use href="#i-check"/></svg><span>YouTube rates the stream Poor, or the disk fills up</span></li>
+        <li><svg class="i"><use href="#i-check"/></svg><span>someone keeps guessing your password</span></li>
+      </ul>
+      <label class="field">
+        <span>Discord webhook URL</span>
+        <input id="alerts-webhook" type="password" autocomplete="off" placeholder="https://discord.com/api/webhooks/…">
+        <small class="muted">In Discord: pick a channel → its settings (gear) → <b>Integrations</b> → <b>Webhooks</b> → <b>New Webhook</b> → <b>Copy Webhook URL</b>, then paste it here.</small>
+      </label>
+      <div class="btn-row"><a class="btn btn-small" href="https://support.discord.com/hc/en-us/articles/228383668-Intro-to-Webhooks" target="_blank" rel="noopener">How to make a webhook<svg class="i i-sm"><use href="#i-external"/></svg></a></div>
+      <p id="alerts-error" class="form-error" role="alert"></p>
+      <p id="alerts-ok" class="ok small" hidden></p>
+      <button class="btn btn-primary btn-block" type="submit" id="alerts-save">Save and send a test message</button>
+      <button class="btn btn-ghost btn-block" type="button" id="alerts-continue">Skip for now</button>
     </form>
   </main>
 

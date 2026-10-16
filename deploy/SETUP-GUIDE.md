@@ -123,9 +123,12 @@ The script installs everything, then asks for:
 - a **panel password** — you'll type it in the browser;
 - your **YouTube stream key** — see step 5 (you can paste it later in the
   panel's settings instead);
-- optional **Discord webhook** and **Healthchecks** URLs — see step 6;
+- a **Discord webhook** (strongly recommended) and a **Healthchecks** URL —
+  see step 6;
 - your **time zone**, e.g. `Europe/London` (for the weekly restart at 4 am;
-  the panel can change it later).
+  the panel can change it later);
+- whether to turn on the **link that never changes** — press Enter for yes
+  (see below).
 
 Press Enter to skip any question: everything can be set in the panel later.
 
@@ -133,13 +136,14 @@ Nothing needs to be opened in Oracle's firewall for the panel: it is reached
 through a Cloudflare tunnel that connects *outwards*. (Going live from OBS
 needs one port opened, see step 8.)
 
-**A link that never changes** (optional): the Cloudflare link is new after
-every restart (Discord always gets it). For one fixed address instead, run
-`FINDER_PORT=8080 bash deploy/setup.sh` (Enter skips every question) and add
-an Ingress Rule in Oracle (VCN → Security Lists → Add Ingress Rule: source
-`0.0.0.0/0`, **TCP**, port **8080**). Then `http://<server-ip>:8080` always
-forwards to the panel. It shows nothing else; the panel still needs its
-password.
+**The link that never changes:** the Cloudflare link is new after every
+restart (Discord always gets it), so the installer offers a fixed address,
+`http://<server-ip>:8080`, that always forwards to the current one. It shows
+nothing else; the panel still needs its password. If you said yes, add an
+Ingress Rule in Oracle so it can be reached: VCN → **Security Lists** →
+**Add Ingress Rule**: source `0.0.0.0/0`, **TCP**, port **8080**. Said no?
+Turn it on later with `FINDER_PORT=8080 bash deploy/setup.sh` (Enter skips
+the other questions).
 
 **Choose the password in the browser instead:** `bash deploy/setup.sh
 --unattended` asks nothing and prints a **setup code**; open the panel, enter
@@ -212,7 +216,12 @@ YouTube start it (nobody is watching yet at that point). If Auto-stop is on,
 If Google asks you to "Verify it's you" while connecting, it sends a code to
 a phone on your account; keep that phone at hand.
 
-## 6. Alerts (optional, recommended)
+## 6. Alerts (strongly recommended)
+
+The stream runs on the server, so without alerts you won't know it dropped
+until someone tells you. Right after you choose the panel password, the panel
+asks for a Discord webhook (you can skip it; the **Getting started** list
+reminds you).
 
 **Discord** — you get a message when the stream starts, drops, comes back,
 freezes, skips a broken file, or the panel's link changes:
@@ -229,9 +238,10 @@ being completely dead (power, network, Oracle stopped it).
 
 - **Deploy button:** open `http://<server-ip>:8080` (the stack's **Open the
   panel**). It always leads to the panel.
-- **By hand:** the panel's link arrives in Discord (or run
-  `journalctl -u stream-panel | grep 'panel URL'` on the server). It changes
-  when the server restarts — Discord always gets the new one.
+- **By hand:** open `http://<server-ip>:8080` if you turned on the link
+  that never changes (step 4). Otherwise the panel's link arrives in Discord
+  (or run `journalctl -u stream-panel | grep 'panel URL'` on the server); it
+  changes when the server restarts, and Discord always gets the new one.
 - Sign in. The **Getting started** list on the Overview shows what is left
   (stream key, media, alerts) with a button to each page you need. Then press
   **Start**.

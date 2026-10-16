@@ -154,6 +154,7 @@ function showLogin(passwordSet = true, setupCodeRequired = false) {
   $('#login').hidden = false;
   $('#login-form').hidden = setup;
   $('#setup-form').hidden = !setup;
+  $('#alerts-step').hidden = true;
   $('#login-hint').textContent = passwordSet || setup ? '' : 'No password yet. On the server run: npm run set-password';
   (setup ? $('#setup-code') : $('#login-password')).focus();
 }
@@ -196,8 +197,7 @@ $('#setup-form').addEventListener('submit', async (e) => {
   try {
     await api('POST', '/api/auth/setup', { code: $('#setup-code').value, password, timeZone });
     $('#setup-form').reset();
-    await showApp();
-    toast('Password set. You are signed in.');
+    showAlertsStep();
   } catch (e2) {
     err.textContent = e2.message;
     if (e2.status === 409) {
@@ -206,6 +206,55 @@ $('#setup-form').addEventListener('submit', async (e) => {
     }
   }
 });
+
+// Straight after the first password: ask for a Discord webhook (skippable),
+// so a non-technical owner hears when the stream drops or the link changes.
+async function showAlertsStep() {
+  const cfg = await api('GET', '/api/config').catch(() => null);
+  if (cfg?.notifications?.discordWebhookUrl?.set) return showApp(); // already set up (e.g. by the installer)
+  $('#setup-form').hidden = true;
+  $('#alerts-step').hidden = false;
+  $('#alerts-ok').hidden = true;
+  $('#alerts-continue').textContent = 'Skip for now';
+  $('#alerts-webhook').focus();
+}
+
+async function leaveAlertsStep() {
+  $('#alerts-step').hidden = true;
+  $('#alerts-step').reset();
+  await showApp();
+}
+
+$('#alerts-step').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const err = $('#alerts-error');
+  const done = $('#alerts-ok');
+  err.textContent = '';
+  done.hidden = true;
+  const url = $('#alerts-webhook').value.trim();
+  if (!url) {
+    err.textContent = 'Paste the webhook URL first, or choose Skip for now.';
+    return;
+  }
+  $('#alerts-save').disabled = true;
+  try {
+    await api('PUT', '/api/config', { notifications: { discordWebhookUrl: url } });
+    const test = await api('POST', '/api/config/test-notification').catch((e2) => ({ ok: false, error: e2.message }));
+    if (test?.ok === false) {
+      err.textContent = `Saved, but the test message didn't arrive: ${test.error ?? 'unknown error'}. Check the URL, or carry on and fix it later in Settings.`;
+    } else {
+      done.textContent = 'Saved. A test message is in your Discord channel.';
+      done.hidden = false;
+    }
+    $('#alerts-continue').textContent = 'Open the panel';
+  } catch (e2) {
+    err.textContent = e2.message;
+  } finally {
+    $('#alerts-save').disabled = false;
+  }
+});
+
+$('#alerts-continue').addEventListener('click', leaveAlertsStep);
 
 $('#logout').addEventListener('click', async () => {
   closeTerminal();

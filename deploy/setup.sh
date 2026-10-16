@@ -158,8 +158,21 @@ OBS_PORT=$(node -e "console.log(require('./data/config.json').obs?.port ?? 9710)
 open_port udp "$OBS_PORT" "OBS"
 
 # Stable link: http://<public ip>:<port> always forwards to the panel's
-# current Cloudflare link (it serves nothing else).
-if [ -n "${FINDER_PORT:-}" ]; then node cli.js set finder.port "$FINDER_PORT" >/dev/null; fi
+# current Cloudflare link (it serves nothing else). The Cloudflare link
+# changes on every restart, so this is how people who don't use Discord (or
+# the server's command line) find the panel. Asked once, yes by default.
+FINDER=$(node -e "console.log(require('./data/config.json').finder?.port ?? 0)")
+if [ -n "${FINDER_PORT:-}" ]; then
+  node cli.js set finder.port "$FINDER_PORT" >/dev/null
+elif [ "$UNATTENDED" = 0 ] && [ "$FINDER" = 0 ]; then
+  echo "The panel's Cloudflare link changes whenever the server restarts. A link that"
+  echo "never changes, http://<this server's IP>:8080, can always forward to it."
+  read -r -p "Turn on that link (it only forwards visitors to the panel)? [Y/n] " yn
+  case "$yn" in
+    [nN]*) echo "  Off. Turn it on later with: FINDER_PORT=8080 bash deploy/setup.sh" ;;
+    *) node cli.js set finder.port 8080 >/dev/null ;;
+  esac
+fi
 FINDER=$(node -e "console.log(require('./data/config.json').finder?.port ?? 0)")
 if [ "$FINDER" -gt 0 ]; then open_port tcp "$FINDER" "the panel's stable link"; fi
 

@@ -47,7 +47,7 @@ playlist carries on when you stop.
 |-|-|-|
 | Oracle Cloud account (Always Free ARM server) | Free (a card is asked for at sign-up) | Running it 24/7 |
 | A YouTube channel with live streaming enabled | Free | Streaming |
-| A Discord server where you can add a webhook | Free | Alerts (optional, recommended) |
+| A Discord server where you can add a webhook | Free | Alerts: stream dropped or back, the panel's new link (strongly recommended) |
 | A Healthchecks.io account | Free | Alerts if the whole server dies (optional) |
 | A Google Cloud project | Free | Connect YouTube (optional) |
 | OBS Studio 27 or newer | Free | Going live from OBS (optional) |
@@ -74,8 +74,15 @@ the **By hand** steps below work on any Ubuntu server.
    install itself. The stack's **Application information** tab has **Open the
    panel** and your **Setup code**.
 4. Open the panel, enter the setup code, choose your password.
+5. Next it asks for a **Discord webhook**, so you get a message when the
+   stream drops, comes back, or the panel gets a new link. Takes a minute and
+   is strongly recommended; **Skip for now** is fine too (the Getting started
+   list reminds you).
 
-<img src="docs/images/setup.png" width="360" alt="First visit: setup code and password">
+<p>
+  <img src="docs/images/setup.png" width="320" alt="First visit: setup code and password">
+  <img src="docs/images/alerts-step.png" width="320" alt="Then: Discord alerts">
+</p>
 
 That link (`http://<server-ip>:8080`) never changes: bookmark it on your
 phone. "Out of host capacity" during the job is normal for free servers:
@@ -95,12 +102,16 @@ The full walk-through, with every click, is in
    bash deploy/setup.sh
    ```
    It installs Node.js, FFmpeg and cloudflared, asks for a panel password,
-   your stream key, Discord and Healthchecks URLs (Enter skips any), and your
-   time zone, then starts the service. With `--unattended` it asks nothing
-   and prints a setup code instead (you choose the password in the browser).
-3. The panel's link arrives in Discord (or run
-   `journalctl -u stream-panel | grep 'panel URL'`). Open it, sign in, add
-   media, press **Start**.
+   your stream key, Discord and Healthchecks URLs (Enter skips any), your
+   time zone, and whether to turn on the **link that never changes** (press
+   Enter for yes), then starts the service. With `--unattended` it asks
+   nothing and prints a setup code instead (you choose the password in the
+   browser).
+3. In Oracle: VCN → **Security Lists** → **Add Ingress Rule**: source
+   `0.0.0.0/0`, **TCP**, port **8080** (for that link).
+4. Open `http://<server-ip>:8080` (bookmark it: it always leads to the
+   panel), sign in, add media, press **Start**. Discord also gets each new
+   panel link if you gave a webhook.
 
 Want to try it first without a server? Run the same installer in Ubuntu on
 Windows: [deploy/WSL-REHEARSAL.md](deploy/WSL-REHEARSAL.md).
@@ -192,6 +203,10 @@ server. **Disconnect** (or myaccount.google.com/permissions) removes access.
 ### 4. Alerts
 
 <img src="docs/images/alerts.png" width="520" alt="Alerts card">
+
+Strongly recommended: the stream runs on the server, so without alerts you
+won't know it dropped until someone tells you. The panel asks for a Discord
+webhook right after you choose the password; if you skipped it, add it here.
 
 - **Discord**: your server → channel settings → **Integrations → Webhooks →
   New Webhook → Copy Webhook URL** → paste → **Send test**.
@@ -312,7 +327,7 @@ someone who learns the panel password still can't open it.
 
 | Task | How |
 |-|-|
-| Find the panel link | `http://<server-ip>:8080` (Deploy button), Discord, or `journalctl -u stream-panel \| grep 'panel URL'` |
+| Find the panel link | `http://<server-ip>:8080` (always; bookmark it), the newest Discord message, or `journalctl -u stream-panel \| grep 'panel URL'` |
 | See what's happening | Panel → **Logs**, or `journalctl -u stream-panel -f` |
 | Restart everything | `sudo systemctl restart stream-panel` (resumes where it was) |
 | Update to a new version | `bash deploy/update.sh`, or the **Update panel** button in the Terminal tab |
